@@ -1,0 +1,138 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db, handleFirestoreError, OperationType } from './firebase';
+
+interface AppUser {
+  uid: string;
+  name: string;
+  email: string;
+  phone?: string;
+  referId: string;
+  referredBy?: string;
+  role: 'user' | 'admin';
+  balance: number;
+  unlockedPackages: string[];
+  createdAt: Date;
+}
+
+interface AuthContextType {
+  user: User | null;
+  appUser: AppUser | null;
+  loading: boolean;
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
+  loginWithEmail: (email: string, pass: string) => Promise<void>;
+  registerWithEmail: (email: string, pass: string, name: string, phone: string, referCode: string) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [appUser, setAppUser] = useState<AppUser | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+      if (firebaseUser) {
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            const data = userDoc.data() as AppUser;
+            const isAdminEmail = firebaseUser.email === 'yuta81134@gmail.com';
+            if (isAdminEmail && data.role !== 'admin') {
+              data.role = 'admin';
+              await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+            }
+            setAppUser(data);
+          } else {
+            // Create new user profile
+            const isAdminEmail = firebaseUser.email === 'yuta81134@gmail.com';
+            const newAppUser: AppUser = {
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || 'User',
+              email: firebaseUser.email || '',
+              referId: Math.random().toString(36).substring(2, 10).toUpperCase(),
+              role: isAdminEmail ? 'admin' : 'user',
+              balance: 0,
+              unlockedPackages: ['demo-job-1'],
+              createdAt: new Date(),
+            };
+            await setDoc(userDocRef, newAppUser);
+            setAppUser(newAppUser);
+          }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+        }
+      } else {
+        setAppUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loginWithEmail = async (email: string, pass: string) => {
+    await signInWithEmailAndPassword(auth, email, pass);
+  };
+
+  const registerWithEmail = async (email: string, pass: string, name: string, phone: string, referCode: string) => {
+    if (!referCode || referCode.trim() === '') {
+      throw new Error('রেফার কোড দেওয়া আবশ্যক।');
+    }
+
+    const userCred = await createUserWithEmailAndPassword(auth, email, pass);
+    const userDocRef = doc(db, 'users', userCred.user.uid);
+    const isAdminEmail = email === 'yuta81134@gmail.com';
+    const newAppUser: AppUser = {
+      uid: userCred.user.uid,
+      name: name,
+      email: email,
+      phone: phone,
+      referId: Math.random().toString(36).substring(2, 10).toUpperCase(),
+      referredBy: referCode,
+      role: isAdminEmail ? 'admin' : 'user',
+      balance: 0,
+      unlockedPackages: ['demo-job-1'],
+      createdAt: new Date(),
+    };
+    await setDoc(userDocRef, newAppUser);
+    setAppUser(newAppUser);
+  };
+
+  const login = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error('Login failed:', error);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, appUser, loading, login, logout, loginWithEmail, registerWithEmail }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
