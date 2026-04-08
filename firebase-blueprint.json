@@ -1,0 +1,76 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "User ID" },
+        "name": { "type": "string", "description": "User's full name" },
+        "email": { "type": "string", "description": "User's email address" },
+        "referId": { "type": "string", "description": "User's referral ID" },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "User role" },
+        "createdAt": { "type": "timestamp", "description": "Account creation time" }
+      },
+      "required": ["uid", "name", "email", "referId", "role", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A notification message",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Notification title" },
+        "message": { "type": "string", "description": "Notification message" },
+        "imageUrl": { "type": "string", "description": "Optional image URL" },
+        "createdAt": { "type": "timestamp", "description": "Creation time" }
+      },
+      "required": ["title", "message", "createdAt"]
+    },
+    "Popup": {
+      "title": "Popup",
+      "description": "A popup message",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Popup title" },
+        "content": { "type": "string", "description": "Popup content" },
+        "imageUrl": { "type": "string", "description": "Optional image URL" },
+        "isActive": { "type": "boolean", "description": "Whether the popup is active" },
+        "updatedAt": { "type": "timestamp", "description": "Last update time" }
+      },
+      "required": ["title", "content", "isActive", "updatedAt"]
+    },
+    "PremiumJob": {
+      "title": "Premium Job",
+      "description": "A premium job posted by admin",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Job title" },
+        "description": { "type": "string", "description": "Job description/instructions" },
+        "duration": { "type": "string", "description": "Job duration" },
+        "price": { "type": "number", "description": "Job price" },
+        "reward": { "type": "number", "description": "Task reward" },
+        "isActive": { "type": "boolean", "description": "Whether job is active" },
+        "createdAt": { "type": "timestamp", "description": "Creation time" }
+      },
+      "required": ["title", "description", "duration", "price", "reward", "isActive", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "User" },
+      "description": "User profiles"
+    },
+    "/notifications/{notificationId}": {
+      "schema": { "$ref": "Notification" },
+      "description": "Global notifications"
+    },
+    "/popups/{popupId}": {
+      "schema": { "$ref": "Popup" },
+      "description": "Global popups"
+    },
+    "/premiumJobs/{jobId}": {
+      "schema": { "$ref": "PremiumJob" },
+      "description": "Premium jobs list"
+    }
+  }
+}
