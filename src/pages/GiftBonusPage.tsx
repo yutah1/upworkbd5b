@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gift, DollarSign } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDoc, arrayUnion } from 'firebase/firestore';
 
 export const GiftBonusPage = () => {
@@ -16,6 +16,8 @@ export const GiftBonusPage = () => {
     const q = query(collection(db, 'giftBonuses'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setBonuses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'giftBonuses');
     });
     return () => unsubscribe();
   }, []);
@@ -35,28 +37,29 @@ export const GiftBonusPage = () => {
       return;
     }
 
-    // Check if already claimed
-    const userDocRef = doc(db, 'users', user.uid);
-    const userDocSnap = await getDoc(userDocRef);
-    if (userDocSnap.exists()) {
-      const userData = userDocSnap.data();
-      if (userData.claimedGiftBonuses && userData.claimedGiftBonuses.includes(bonus.id)) {
-        setMessage('আপনি ইতিমধ্যে এই বোনাসটি ক্লেম করেছেন।');
-        return;
-      }
+    try {
+      // Check if already claimed
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.claimedGiftBonuses && userData.claimedGiftBonuses.includes(bonus.id)) {
+          setMessage('আপনি ইতিমধ্যে এই বোনাসটি ক্লেম করেছেন।');
+          return;
+        }
 
-      // Claim bonus
-      try {
+        // Claim bonus
         await updateDoc(userDocRef, {
           balance: (userData.balance || 0) + bonus.amount,
           claimedGiftBonuses: arrayUnion(bonus.id)
         });
         setMessage(`অভিনন্দন! আপনি ৳${bonus.amount} বোনাস পেয়েছেন।`);
         setRedeemCode('');
-      } catch (error) {
-        console.error("Error claiming bonus:", error);
-        setMessage('একটি ত্রুটি হয়েছে।');
       }
+    } catch (error) {
+      console.error("Error claiming bonus:", error);
+      setMessage('একটি ত্রুটি হয়েছে।');
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
   };
 
