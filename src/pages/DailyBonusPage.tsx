@@ -2,14 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Gift, Calendar } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { doc, updateDoc, getDoc, onSnapshot } from 'firebase/firestore';
 
 export const DailyBonusPage = () => {
   const { user, appUser } = useAuth();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const [canClaim, setCanClaim] = useState(false);
+  const [bonusAmount, setBonusAmount] = useState(5);
+
+  useEffect(() => {
+    const unsubscribe = onSnapshot(doc(db, 'settings', 'dailyBonus'), (docSnap) => {
+      if (docSnap.exists()) {
+        setBonusAmount(docSnap.data().amount || 5);
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/dailyBonus');
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (appUser) {
@@ -23,7 +35,6 @@ export const DailyBonusPage = () => {
     if (!user || !appUser || !canClaim) return;
 
     const today = new Date().toISOString().split('T')[0];
-    const bonusAmount = 5; // Example fixed bonus
 
     try {
       await updateDoc(doc(db, 'users', user.uid), {
@@ -35,6 +46,7 @@ export const DailyBonusPage = () => {
     } catch (error) {
       console.error("Error claiming daily bonus:", error);
       setMessage('একটি ত্রুটি হয়েছে।');
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
     }
   };
 
