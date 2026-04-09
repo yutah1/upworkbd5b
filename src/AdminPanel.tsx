@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ConfirmModal } from './components/ConfirmModal';
 import { AlertModal } from './components/AlertModal';
 import { useGridStore } from './store/useGridStore';
-import { ArrowLeft, Eye, EyeOff, Save, Edit2, ShieldAlert, LayoutDashboard, Grid, Briefcase, Users, CreditCard, Plus, Trash2, Bot, X, ChevronRight, Target, Gift, Award, Video, Menu, Settings } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Save, Edit2, ShieldAlert, LayoutDashboard, Grid, Briefcase, Users, CreditCard, Plus, Trash2, Bot, X, ChevronRight, Target, Gift, Award, Video, Menu, Settings, Activity, Banknote } from 'lucide-react';
 import { doc, setDoc, collection, addDoc, deleteDoc, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from './firebase';
 import { useAuth } from './AuthContext';
@@ -14,6 +14,9 @@ export const AdminPanel = () => {
   const { options, updateOption } = useGridStore();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  
+  // Stats State
+  const [websiteStats, setWebsiteStats] = useState({ totalUsers: 15420, totalWithdrawals: 8530 });
   
   // Grid Options State
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -115,10 +118,20 @@ export const AdminPanel = () => {
   const showConfirm = (message: string, onConfirm: () => void) => setConfirmDialog({ isOpen: true, message, onConfirm });
 
   // Check if user is admin
-  const isAdmin = user?.email === 'yuta81134@gmail.com' || appUser?.role === 'admin';
+  const isAdmin = user?.email === 'islamohi453@gmail.com' || user?.email === 'yuta81134@gmail.com' || appUser?.role === 'admin';
 
   useEffect(() => {
     if (!isAdmin) return;
+
+    const unsubStats = onSnapshot(doc(db, 'settings', 'stats'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setWebsiteStats({
+          totalUsers: data.totalUsers || 15420,
+          totalWithdrawals: data.totalWithdrawals || 8530
+        });
+      }
+    });
 
     // Fetch Premium Jobs
     const q = query(collection(db, 'premiumJobs'), orderBy('createdAt', 'desc'));
@@ -303,9 +316,12 @@ export const AdminPanel = () => {
       if (docSnap.exists()) {
         setPaymentMethods(docSnap.data() as any);
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'settings/paymentMethods');
     });
 
     return () => {
+      unsubStats();
       unsubscribeJobs();
       unsubscribeDeposits();
       unsubscribeUsers();
@@ -335,6 +351,17 @@ export const AdminPanel = () => {
   const [manageReferUser, setManageReferUser] = useState<any | null>(null);
 
   // --- Grid Options Handlers ---
+  const handleUpdateStats = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await setDoc(doc(db, 'settings', 'stats'), websiteStats, { merge: true });
+      showAlert('স্ট্যাটাস সফলভাবে আপডেট করা হয়েছে!');
+    } catch (error) {
+      console.error(error);
+      showAlert('স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে!');
+    }
+  };
+
   const handleToggleVisibility = async (id: number, currentStatus: boolean) => {
     if (!isAdmin) return showAlert("Access Denied");
     const newOptions = options.map(opt => opt.id === id ? { ...opt, isActive: !currentStatus } : opt);
@@ -930,13 +957,26 @@ export const AdminPanel = () => {
         // Update deposit status
         await setDoc(doc(db, 'deposits', deposit.id), { status: 'approved' }, { merge: true });
         
-        // Update user balance
+        // Update user balance and verification status
         const userRef = doc(db, 'users', deposit.userId);
-        const { getDoc } = await import('firebase/firestore');
+        const { getDoc, query, collection, where, getDocs } = await import('firebase/firestore');
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          const currentBalance = userSnap.data().balance || 0;
-          await setDoc(userRef, { balance: currentBalance + deposit.amount }, { merge: true });
+          const userData = userSnap.data();
+          const currentBalance = userData.balance || 0;
+          await setDoc(userRef, { balance: currentBalance + deposit.amount, isVerified: true }, { merge: true });
+
+          // Check if user was referred by someone and give referrer a free spin
+          if (userData.referredBy && !userData.isVerified) {
+            const q = query(collection(db, 'users'), where('referId', '==', userData.referredBy));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+              const referrerDoc = querySnapshot.docs[0];
+              const referrerData = referrerDoc.data();
+              const currentSpinCount = referrerData.spinCount || 0;
+              await setDoc(referrerDoc.ref, { spinCount: currentSpinCount + 1 }, { merge: true });
+            }
+          }
         }
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `deposits/${deposit.id}`);
@@ -1006,6 +1046,9 @@ export const AdminPanel = () => {
         <div className="flex-1 overflow-y-auto py-4">
           <button onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'dashboard' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
             <LayoutDashboard size={20} /> ড্যাশবোর্ড
+          </button>
+          <button onClick={() => { setActiveTab('stats'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'stats' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
+            <Activity size={20} /> স্ট্যাটাস আপডেট
           </button>
           <button onClick={() => { setActiveTab('grid'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'grid' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
             <Grid size={20} /> গ্রিড অপশন
@@ -1205,6 +1248,37 @@ export const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === 'stats' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <h2 className="text-2xl font-bold text-gray-800">ওয়েবসাইট স্ট্যাটাস আপডেট</h2>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <form onSubmit={handleUpdateStats} className="space-y-4 max-w-md">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">মোট ইউজার (Total Users)</label>
+                  <input 
+                    type="number" 
+                    value={websiteStats.totalUsers} 
+                    onChange={e => setWebsiteStats({...websiteStats, totalUsers: Number(e.target.value)})} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">মোট উইথড্র (Total Withdrawals)</label>
+                  <input 
+                    type="number" 
+                    value={websiteStats.totalWithdrawals} 
+                    onChange={e => setWebsiteStats({...websiteStats, totalWithdrawals: Number(e.target.value)})} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md" 
+                  />
+                </div>
+                <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition">
+                  আপডেট করুন
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'grid' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-center">
@@ -1220,11 +1294,11 @@ export const AdminPanel = () => {
                 <form onSubmit={handleAddGridOption} className="flex gap-4 items-end">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newGridOption.title} onChange={e => setNewGridOption({...newGridOption, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Special Task" />
+                    <input type="text" value={newGridOption.title} onChange={e => setNewGridOption({...newGridOption, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Special Task" />
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">আইকন আইডি (যেমন: StarIcon)</label>
-                    <input required type="text" value={newGridOption.iconId} onChange={e => setNewGridOption({...newGridOption, iconId: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="StarIcon" />
+                    <input type="text" value={newGridOption.iconId} onChange={e => setNewGridOption({...newGridOption, iconId: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="StarIcon" />
                   </div>
                   <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">যোগ করুন</button>
                 </form>
@@ -1279,23 +1353,23 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">জবের শিরোনাম</label>
-                    <input required type="text" value={newJob.title} onChange={e => setNewJob({...newJob, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Watch YouTube Video" />
+                    <input type="text" value={newJob.title} onChange={e => setNewJob({...newJob, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Watch YouTube Video" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
-                    <input required type="text" value={newJob.expiredDate} onChange={e => setNewJob({...newJob, expiredDate: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 7 Days" />
+                    <input type="text" value={newJob.expiredDate} onChange={e => setNewJob({...newJob, expiredDate: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 7 Days" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">মূল্য (৳)</label>
-                    <input required type="number" min="0" value={newJob.price} onChange={e => setNewJob({...newJob, price: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newJob.price} onChange={e => setNewJob({...newJob, price: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">দৈনিক রিওয়ার্ড (৳)</label>
-                    <input required type="number" min="0" value={newJob.dailyReward} onChange={e => setNewJob({...newJob, dailyReward: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="প্রতিদিনের পরিমাণ" />
+                    <input type="number" min="0" value={newJob.dailyReward} onChange={e => setNewJob({...newJob, dailyReward: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="প্রতিদিনের পরিমাণ" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ক্রেতার সীমা</label>
-                    <input required type="number" min="1" value={newJob.buyerLimit} onChange={e => setNewJob({...newJob, buyerLimit: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="1" value={newJob.buyerLimit} onChange={e => setNewJob({...newJob, buyerLimit: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
                 <div>
@@ -1304,7 +1378,7 @@ export const AdminPanel = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">নির্দেশিকা / বিবরণ</label>
-                  <textarea required rows={4} value={newJob.description} onChange={e => setNewJob({...newJob, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ব্যবহারকারীর জন্য বিস্তারিত নির্দেশিকা..."></textarea>
+                  <textarea rows={4} value={newJob.description} onChange={e => setNewJob({...newJob, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ব্যবহারকারীর জন্য বিস্তারিত নির্দেশিকা..."></textarea>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">জব পোস্ট করুন</button>
               </form>
@@ -1590,7 +1664,7 @@ export const AdminPanel = () => {
               <form onSubmit={handleSaveDailyBonus} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">ডেইলি বোনাসের পরিমাণ (৳)</label>
-                  <input required type="number" min="0" value={dailyBonus.amount} onChange={e => setDailyBonus({ amount: Number(e.target.value) })} className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md" />
+                  <input type="number" min="0" value={dailyBonus.amount} onChange={e => setDailyBonus({ amount: Number(e.target.value) })} className="w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-md" />
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">সেটিংস সংরক্ষণ করুন</button>
               </form>
@@ -1608,15 +1682,15 @@ export const AdminPanel = () => {
                     <div key={index} className="flex flex-col md:flex-row gap-4 items-end border-b pb-4 last:border-0">
                       <div className="flex-1">
                         <label className="block text-xs font-medium text-gray-500 mb-1">লেবেল (চাকায় লেখা)</label>
-                        <input required type="text" value={segment.label} onChange={e => updateSpinSegment(index, 'label', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        <input type="text" value={segment.label} onChange={e => updateSpinSegment(index, 'label', e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                       <div className="flex-1">
                         <label className="block text-xs font-medium text-gray-500 mb-1">মান (৳)</label>
-                        <input required type="number" min="0" value={segment.value} onChange={e => updateSpinSegment(index, 'value', Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        <input type="number" min="0" value={segment.value} onChange={e => updateSpinSegment(index, 'value', Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                       <div className="flex-1">
                         <label className="block text-xs font-medium text-gray-500 mb-1">সম্ভাবনা (%)</label>
-                        <input required type="number" min="0" max="100" value={segment.probability} onChange={e => updateSpinSegment(index, 'probability', Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                        <input type="number" min="0" max="100" value={segment.probability} onChange={e => updateSpinSegment(index, 'probability', Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                       </div>
                     </div>
                   ))}
@@ -1639,19 +1713,19 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newMonthlySalary.title} onChange={e => setNewMonthlySalary({...newMonthlySalary, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Level 1 Salary" />
+                    <input type="text" value={newMonthlySalary.title} onChange={e => setNewMonthlySalary({...newMonthlySalary, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Level 1 Salary" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ডেসক্রিপশন</label>
-                    <input required type="text" value={newMonthlySalary.description} onChange={e => setNewMonthlySalary({...newMonthlySalary, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="শর্তসমূহ" />
+                    <input type="text" value={newMonthlySalary.description} onChange={e => setNewMonthlySalary({...newMonthlySalary, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="শর্তসমূহ" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newMonthlySalary.amount} onChange={e => setNewMonthlySalary({...newMonthlySalary, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newMonthlySalary.amount} onChange={e => setNewMonthlySalary({...newMonthlySalary, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">টার্গেট (রেফারেল/পয়েন্ট)</label>
-                    <input required type="number" min="0" value={newMonthlySalary.target} onChange={e => setNewMonthlySalary({...newMonthlySalary, target: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newMonthlySalary.target} onChange={e => setNewMonthlySalary({...newMonthlySalary, target: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">টিয়ার যোগ করুন</button>
@@ -1726,19 +1800,19 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newLeadershipSalary.title} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Bronze Leader" />
+                    <input type="text" value={newLeadershipSalary.title} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Bronze Leader" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ডেসক্রিপশন</label>
-                    <input required type="text" value={newLeadershipSalary.description} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="শর্তসমূহ" />
+                    <input type="text" value={newLeadershipSalary.description} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="শর্তসমূহ" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newLeadershipSalary.amount} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newLeadershipSalary.amount} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">টার্গেট (টিমের আকার)</label>
-                    <input required type="number" min="0" value={newLeadershipSalary.target} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, target: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newLeadershipSalary.target} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, target: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">টিয়ার যোগ করুন</button>
@@ -1813,19 +1887,19 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newVideoTask.title} onChange={e => setNewVideoTask({...newVideoTask, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Watch YouTube Video" />
+                    <input type="text" value={newVideoTask.title} onChange={e => setNewVideoTask({...newVideoTask, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Watch YouTube Video" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">রিওয়ার্ড (৳)</label>
-                    <input required type="number" min="0" value={newVideoTask.reward} onChange={e => setNewVideoTask({...newVideoTask, reward: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newVideoTask.reward} onChange={e => setNewVideoTask({...newVideoTask, reward: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">সময়কাল (সেকেন্ড)</label>
-                    <input required type="number" min="0" value={newVideoTask.duration} onChange={e => setNewVideoTask({...newVideoTask, duration: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newVideoTask.duration} onChange={e => setNewVideoTask({...newVideoTask, duration: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ভিডিও URL (YouTube Embed)</label>
-                    <input required type="text" value={newVideoTask.videoUrl} onChange={e => setNewVideoTask({...newVideoTask, videoUrl: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="https://www.youtube.com/embed/..." />
+                    <input type="text" value={newVideoTask.videoUrl} onChange={e => setNewVideoTask({...newVideoTask, videoUrl: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="https://www.youtube.com/embed/..." />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">ভিডিও টাস্ক যোগ করুন</button>
@@ -2048,7 +2122,7 @@ export const AdminPanel = () => {
                         <option value="Agent">Agent</option>
                       </select>
                       <input 
-                        required
+                        
                         type="text" 
                         value={paymentMethods.bKash}
                         onChange={(e) => setPaymentMethods({...paymentMethods, bKash: e.target.value})}
@@ -2069,7 +2143,7 @@ export const AdminPanel = () => {
                         <option value="Agent">Agent</option>
                       </select>
                       <input 
-                        required
+                        
                         type="text" 
                         value={paymentMethods.nagad}
                         onChange={(e) => setPaymentMethods({...paymentMethods, nagad: e.target.value})}
@@ -2090,7 +2164,7 @@ export const AdminPanel = () => {
                         <option value="Agent">Agent</option>
                       </select>
                       <input 
-                        required
+                        
                         type="text" 
                         value={paymentMethods.rocket}
                         onChange={(e) => setPaymentMethods({...paymentMethods, rocket: e.target.value})}
@@ -2111,7 +2185,7 @@ export const AdminPanel = () => {
                         <option value="Agent">Agent</option>
                       </select>
                       <input 
-                        required
+                        
                         type="text" 
                         value={paymentMethods.upay}
                         onChange={(e) => setPaymentMethods({...paymentMethods, upay: e.target.value})}
@@ -2241,15 +2315,15 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ক্যাটাগরির নাম</label>
-                    <input required type="text" value={newMicroJob.category} onChange={e => setNewMicroJob({...newMicroJob, category: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Facebook Like" />
+                    <input type="text" value={newMicroJob.category} onChange={e => setNewMicroJob({...newMicroJob, category: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Facebook Like" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">পুরস্কারের পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newMicroJob.prize} onChange={e => setNewMicroJob({...newMicroJob, prize: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newMicroJob.prize} onChange={e => setNewMicroJob({...newMicroJob, prize: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">লিমিট (ইউজার)</label>
-                    <input required type="number" min="1" value={newMicroJob.limit} onChange={e => setNewMicroJob({...newMicroJob, limit: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="1" value={newMicroJob.limit} onChange={e => setNewMicroJob({...newMicroJob, limit: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">মাইক্রো জব যোগ করুন</button>
@@ -2315,15 +2389,15 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">টাস্কের নাম</label>
-                    <input required type="text" value={newDailyTask.title} onChange={e => setNewDailyTask({...newDailyTask, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Daily Check-in" />
+                    <input type="text" value={newDailyTask.title} onChange={e => setNewDailyTask({...newDailyTask, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Daily Check-in" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newDailyTask.amount} onChange={e => setNewDailyTask({...newDailyTask, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newDailyTask.amount} onChange={e => setNewDailyTask({...newDailyTask, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">সময়কাল</label>
-                    <input required type="text" value={newDailyTask.duration} onChange={e => setNewDailyTask({...newDailyTask, duration: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 24 hours" />
+                    <input type="text" value={newDailyTask.duration} onChange={e => setNewDailyTask({...newDailyTask, duration: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 24 hours" />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">ডেইলি টাস্ক যোগ করুন</button>
@@ -2365,19 +2439,19 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newTargetBonus.title} onChange={e => setNewTargetBonus({...newTargetBonus, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 5 Referrals Bonus" />
+                    <input type="text" value={newTargetBonus.title} onChange={e => setNewTargetBonus({...newTargetBonus, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 5 Referrals Bonus" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">বোনাসের পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newTargetBonus.amount} onChange={e => setNewTargetBonus({...newTargetBonus, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newTargetBonus.amount} onChange={e => setNewTargetBonus({...newTargetBonus, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">প্রয়োজনীয় প্যাকেজ মূল্য (৳)</label>
-                    <input required type="number" min="0" value={newTargetBonus.packagePrice} onChange={e => setNewTargetBonus({...newTargetBonus, packagePrice: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 500" />
+                    <input type="number" min="0" value={newTargetBonus.packagePrice} onChange={e => setNewTargetBonus({...newTargetBonus, packagePrice: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 500" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">প্রয়োজনীয় রেফারেল</label>
-                    <input required type="number" min="1" value={newTargetBonus.referralsNeeded} onChange={e => setNewTargetBonus({...newTargetBonus, referralsNeeded: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="1" value={newTargetBonus.referralsNeeded} onChange={e => setNewTargetBonus({...newTargetBonus, referralsNeeded: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">টার্গেট বোনাস যোগ করুন</button>
@@ -2419,15 +2493,15 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newGiftBonus.title} onChange={e => setNewGiftBonus({...newGiftBonus, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Eid Bonus" />
+                    <input type="text" value={newGiftBonus.title} onChange={e => setNewGiftBonus({...newGiftBonus, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Eid Bonus" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">বোনাসের পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newGiftBonus.amount} onChange={e => setNewGiftBonus({...newGiftBonus, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newGiftBonus.amount} onChange={e => setNewGiftBonus({...newGiftBonus, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">রিডিম কোড</label>
-                    <input required type="text" value={newGiftBonus.redeemCode} onChange={e => setNewGiftBonus({...newGiftBonus, redeemCode: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: EID2026" />
+                    <input type="text" value={newGiftBonus.redeemCode} onChange={e => setNewGiftBonus({...newGiftBonus, redeemCode: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: EID2026" />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">গিফট বোনাস যোগ করুন</button>
@@ -2469,15 +2543,15 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newWelcomeBonus.title} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: New User Bonus" />
+                    <input type="text" value={newWelcomeBonus.title} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: New User Bonus" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">টার্গেট / ডেসক্রিপশন</label>
-                    <input required type="text" value={newWelcomeBonus.description} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: ৫ জন রেফার করুন" />
+                    <input type="text" value={newWelcomeBonus.description} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: ৫ জন রেফার করুন" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">বোনাসের পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newWelcomeBonus.amount} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newWelcomeBonus.amount} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">পোস্ট করুন</button>
@@ -2554,15 +2628,15 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newFbPost.title} onChange={e => setNewFbPost({...newFbPost, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Old Facebook Account Needed" />
+                    <input type="text" value={newFbPost.title} onChange={e => setNewFbPost({...newFbPost, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Old Facebook Account Needed" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newFbPost.amount} onChange={e => setNewFbPost({...newFbPost, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newFbPost.amount} onChange={e => setNewFbPost({...newFbPost, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">বিবরণ</label>
-                    <textarea required value={newFbPost.description} onChange={e => setNewFbPost({...newFbPost, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের জন্য নির্দেশাবলী..." rows={3} />
+                    <textarea value={newFbPost.description} onChange={e => setNewFbPost({...newFbPost, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের জন্য নির্দেশাবলী..." rows={3} />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">পোস্ট করুন</button>
@@ -2632,19 +2706,19 @@ export const AdminPanel = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
-                    <input required type="text" value={newGmailPost.title} onChange={e => setNewGmailPost({...newGmailPost, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: New Gmail Account Needed" />
+                    <input type="text" value={newGmailPost.title} onChange={e => setNewGmailPost({...newGmailPost, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: New Gmail Account Needed" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">পরিমাণ (৳)</label>
-                    <input required type="number" min="0" value={newGmailPost.amount} onChange={e => setNewGmailPost({...newGmailPost, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                    <input type="number" min="0" value={newGmailPost.amount} onChange={e => setNewGmailPost({...newGmailPost, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">প্রয়োজনীয় পাসওয়ার্ড</label>
-                    <input required type="text" value={newGmailPost.requiredPassword} onChange={e => setNewGmailPost({...newGmailPost, requiredPassword: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের যে পাসওয়ার্ড ব্যবহার করতে হবে..." />
+                    <input type="text" value={newGmailPost.requiredPassword} onChange={e => setNewGmailPost({...newGmailPost, requiredPassword: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের যে পাসওয়ার্ড ব্যবহার করতে হবে..." />
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">বিবরণ</label>
-                    <textarea required value={newGmailPost.description} onChange={e => setNewGmailPost({...newGmailPost, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের জন্য নির্দেশাবলী..." rows={3} />
+                    <textarea value={newGmailPost.description} onChange={e => setNewGmailPost({...newGmailPost, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের জন্য নির্দেশাবলী..." rows={3} />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">পোস্ট করুন</button>
