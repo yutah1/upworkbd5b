@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Facebook, DollarSign, Send } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 
 export const FacebookSellPage = () => {
@@ -19,6 +19,8 @@ export const FacebookSellPage = () => {
     const q = query(collection(db, 'facebookSellPosts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'facebookSellPosts');
     });
     return () => unsubscribe();
   }, []);
@@ -49,6 +51,7 @@ export const FacebookSellPage = () => {
     } catch (error) {
       console.error("Error submitting account:", error);
       setSubmitMessage('একটি ত্রুটি হয়েছে।');
+      handleFirestoreError(error, OperationType.WRITE, 'facebookSellSubmissions');
     }
   };
 
