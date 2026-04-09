@@ -48,7 +48,7 @@ const Header = ({ onMenuClick, onNotifClick }: { onMenuClick: () => void, onNoti
         <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-blue-600 font-bold">
           U
         </div>
-        <h1 className="text-xl font-bold">আপওয়ার্কবিডি৫.কম</h1>
+        <h1 className="text-xl font-bold">UPWORKBD5.COM</h1>
       </div>
       <button onClick={onNotifClick} className="p-2 relative hover:bg-blue-500 rounded-full transition">
         <Bell size={24} />
@@ -120,7 +120,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
               <SidebarItem icon={<User size={20} />} label="প্রোফাইল" onClick={() => { onClose(); navigate('/profile'); }} />
               <SidebarItem icon={<Wallet size={20} />} label="আমার ওয়ালেট" onClick={() => { onClose(); navigate('/wallet'); }} />
               
-              {(user?.email === 'yuta81134@gmail.com') && (
+              {(user?.email === 'islamohi453@gmail.com' || user?.email === 'yuta81134@gmail.com') && (
                 <>
                   <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 mt-6">অ্যাডমিন</div>
                   <SidebarItem icon={<Store size={20} />} label="অ্যাডমিন প্যানেল" onClick={() => { onClose(); navigate('/admin'); }} />
@@ -170,7 +170,7 @@ const SidebarItem = ({ icon, label, onClick }: { icon: React.ReactNode, label: s
 );
 
 const fallbackNotifications = [
-  { id: '1', title: "আপওয়ার্কবিডি৫.কম এ স্বাগতম!", message: "শিখুন | আয় করুন | বড় হোন", createdAt: { toDate: () => new Date() } },
+  { id: '1', title: "UPWORKBD5.COM এ স্বাগতম!", message: "শিখুন | আয় করুন | বড় হোন", createdAt: { toDate: () => new Date() } },
   { id: '2', title: "অফিসিয়াল ঘোষণা", message: "এএস ওয়ার্ক অ্যাপ এখন লাইভ! আজই আয় শুরু করুন।", createdAt: { toDate: () => new Date() } },
   { id: '3', title: "পরিচিতি", message: "আমাদের নতুন ফিচার এবং আপডেট সম্পর্কে জানুন।", createdAt: { toDate: () => new Date() } }
 ];
@@ -193,6 +193,7 @@ const NotificationsPanel = ({ isOpen, onClose }: { isOpen: boolean, onClose: () 
       }, (error) => {
         console.error("Firebase not configured or error fetching notifications:", error);
         setNotifications(fallbackNotifications);
+        handleFirestoreError(error, OperationType.LIST, 'notifications');
       });
 
       return () => unsubscribe();
@@ -286,13 +287,19 @@ const AuthPage = () => {
       } else {
         await registerWithEmail(email, password, name, phone, referCode);
       }
-      if (email === 'yuta81134@gmail.com') {
+      if (email === 'islamohi453@gmail.com' || email === 'yuta81134@gmail.com') {
         navigate('/admin');
       } else {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Authentication failed');
+      if (err.code === 'auth/invalid-credential') {
+        setError('ইমেইল অথবা পাসওয়ার্ড ভুল হয়েছে।');
+      } else if (err.code === 'auth/email-already-in-use') {
+        setError('এই ইমেইল দিয়ে ইতিমধ্যে একটি অ্যাকাউন্ট খোলা হয়েছে।');
+      } else {
+        setError(err.message || 'Authentication failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -358,7 +365,7 @@ const AuthPage = () => {
           <button onClick={async () => { 
             await googleLogin(); 
             const currentUser = auth.currentUser;
-            if (currentUser?.email === 'yuta81134@gmail.com') {
+            if (currentUser?.email === 'islamohi453@gmail.com' || currentUser?.email === 'yuta81134@gmail.com') {
               navigate('/admin');
             } else {
               navigate('/');
@@ -568,6 +575,8 @@ const GiftBonusIcon = () => (
 );
 
 const BannerSlideshow = () => {
+  const { appUser } = useAuth();
+  const navigate = useNavigate();
   const images = [
     "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
     "https://images.unsplash.com/photo-1600880292203-757bb62b4baf?auto=format&fit=crop&w=1000&q=80",
@@ -604,10 +613,24 @@ const BannerSlideshow = () => {
             U
           </div>
         </div>
-        <h2 className="text-2xl font-extrabold text-white mb-3 tracking-widest uppercase drop-shadow-lg">আপওয়ার্কবিডি৫.কম</h2>
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-5 py-2.5 rounded-full font-bold shadow-[0_0_20px_rgba(59,130,246,0.6)] border border-blue-300/50 text-sm sm:text-base transform transition hover:scale-105 cursor-pointer">
-          মাত্র ৫০ টাকায় আপনার ব্যবসায়িক যাত্রা শুরু করুন
-        </div>
+        <h2 className="text-2xl font-extrabold text-white mb-3 tracking-widest uppercase drop-shadow-lg">UPWORKBD5.COM</h2>
+        
+        {!appUser ? (
+          <button 
+            onClick={() => navigate('/auth')}
+            className="bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-6 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(16,185,129,0.6)] border border-emerald-300/50 text-sm sm:text-base transform transition hover:scale-105 cursor-pointer flex items-center gap-2"
+          >
+            এখুনি শুরু করুন <ArrowRight size={20} />
+          </button>
+        ) : !appUser.isVerified ? (
+          <button 
+            onClick={() => navigate('/deposit')}
+            className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-6 py-3 rounded-full font-bold shadow-[0_0_20px_rgba(245,158,11,0.6)] border border-amber-300/50 text-sm sm:text-base transform transition hover:scale-105 cursor-pointer flex items-center gap-2"
+          >
+            ৫০ টাকা দিয়ে অ্যাকাউন্ট অ্যাক্টিভ করুন <ArrowRight size={20} />
+          </button>
+        ) : null}
+
         <p className="text-indigo-100 mt-4 font-semibold tracking-wide drop-shadow-md bg-black/30 px-4 py-1 rounded-full backdrop-blur-sm text-sm">আয় করুন • শিখুন • বড় হোন</p>
       </div>
       
@@ -641,33 +664,40 @@ const iconMap: Record<string, React.ReactNode> = {
 
 const AnimatedStats = () => {
   const navigate = useNavigate();
-  // Fixed numbers as requested
-  const users = 15420;
-  const withdrawals = 8530;
+  const { appUser } = useAuth();
+  const [stats, setStats] = useState({ users: 15420, withdrawals: 8530 });
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'settings', 'stats'), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setStats({
+          users: data.totalUsers || 15420,
+          withdrawals: data.totalWithdrawals || 8530
+        });
+      }
+    }, (error) => {
+      console.error("Error fetching stats:", error);
+    });
+    return () => unsub();
+  }, []);
 
   return (
     <div className="mb-8">
-      <button 
-        onClick={() => navigate('/auth')}
-        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-emerald-200 mb-6 flex items-center justify-center gap-2 hover:scale-[1.02] transition-transform"
-      >
-        এখুনি শুরু করুন <ArrowRight size={20} />
-      </button>
-      
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-4 text-white shadow-lg shadow-blue-200 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-20">
             <Users size={80} />
           </div>
           <p className="text-blue-100 text-sm font-medium mb-1">মোট ইউজার</p>
-          <h3 className="text-2xl font-black">{users.toLocaleString()}+</h3>
+          <h3 className="text-2xl font-black">{stats.users.toLocaleString()}+</h3>
         </div>
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-200 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 opacity-20">
             <Banknote size={80} />
           </div>
           <p className="text-emerald-100 text-sm font-medium mb-1">মোট উইথড্র</p>
-          <h3 className="text-2xl font-black">{withdrawals.toLocaleString()}+</h3>
+          <h3 className="text-2xl font-black">{stats.withdrawals.toLocaleString()}+</h3>
         </div>
       </div>
     </div>
@@ -681,15 +711,10 @@ const HomeDashboard = ({ showAlert }: { showAlert: (msg: string) => void }) => {
   const visibleOptions = options.filter(opt => opt.isActive).sort((a, b) => a.order - b.order);
 
   const handleOptionClick = (opt: any) => {
-    const freeOptions = [1, 13, 2, 16, 11, 12, 6, 17, 14, 5]; // Premium Jobs, Premium Buy, Microjobs, Gmail Sell, Lottery, Spin, Welcome, Daily Bonus, Job Post, Gift Bonus
-    
-    // If not free and user doesn't have other premium packages (length <= 1 means only demo-job-1)
-    if (!freeOptions.includes(opt.id)) {
-       if (!appUser?.unlockedPackages || appUser.unlockedPackages.length <= 1) {
-          showAlert('এই কাজটি করার জন্য আপনাকে একটি প্রিমিয়াম প্যাকেজ কিনতে হবে।');
-          navigate('/premium-buy');
-          return;
-       }
+    if (!appUser) {
+      showAlert('অনুগ্রহ করে আগে লগইন করুন।');
+      setTimeout(() => navigate('/auth'), 1500);
+      return;
     }
 
     if (opt.id === 1 || opt.title === 'প্রিমিয়াম জবস') {
@@ -801,6 +826,23 @@ const BottomNav = () => {
   );
 };
 
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  return user ? <>{children}</> : null;
+};
+
 const AppContent = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -842,6 +884,7 @@ const AppContent = () => {
       },
       (error) => {
         console.error("Error fetching grid options:", error);
+        handleFirestoreError(error, OperationType.GET, 'settings/gridOptions');
       }
     );
     return () => unsubscribe();
@@ -861,27 +904,27 @@ const AppContent = () => {
         <Routes>
           <Route path="/" element={<HomeDashboard showAlert={(msg) => setAlertDialog({ isOpen: true, message: msg })} />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/admin" element={<AdminPanel />} />
-          <Route path="/premium-jobs" element={<PremiumJobsPage />} />
-          <Route path="/premium-buy" element={<PremiumBuyPage />} />
-          <Route path="/deposit" element={<DepositPage />} />
-          <Route path="/wallet" element={<WalletPage />} />
-          <Route path="/team" element={<TeamPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/micro-jobs" element={<MicroJobsPage />} />
-          <Route path="/job-post" element={<JobPostPage />} />
-          <Route path="/daily-tasks" element={<DailyTasksPage />} />
-          <Route path="/video-earn" element={<VideoEarnPage />} />
-          <Route path="/facebook-sell" element={<FacebookSellPage />} />
-          <Route path="/gmail-sell" element={<GmailSellPage />} />
-          <Route path="/target-bonus" element={<TargetBonusPage />} />
-          <Route path="/monthly-salary" element={<MonthlySalaryPage />} />
-          <Route path="/leadership-salary" element={<LeadershipSalaryPage />} />
-          <Route path="/gift-bonus" element={<GiftBonusPage />} />
-          <Route path="/welcome-bonus" element={<WelcomeBonusPage />} />
-          <Route path="/daily-bonus" element={<DailyBonusPage />} />
-          <Route path="/spin-bonus" element={<SpinBonusPage />} />
-          <Route path="/lottery" element={<LotteryPage />} />
+          <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
+          <Route path="/premium-jobs" element={<ProtectedRoute><PremiumJobsPage /></ProtectedRoute>} />
+          <Route path="/premium-buy" element={<ProtectedRoute><PremiumBuyPage /></ProtectedRoute>} />
+          <Route path="/deposit" element={<ProtectedRoute><DepositPage /></ProtectedRoute>} />
+          <Route path="/wallet" element={<ProtectedRoute><WalletPage /></ProtectedRoute>} />
+          <Route path="/team" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/micro-jobs" element={<ProtectedRoute><MicroJobsPage /></ProtectedRoute>} />
+          <Route path="/job-post" element={<ProtectedRoute><JobPostPage /></ProtectedRoute>} />
+          <Route path="/daily-tasks" element={<ProtectedRoute><DailyTasksPage /></ProtectedRoute>} />
+          <Route path="/video-earn" element={<ProtectedRoute><VideoEarnPage /></ProtectedRoute>} />
+          <Route path="/facebook-sell" element={<ProtectedRoute><FacebookSellPage /></ProtectedRoute>} />
+          <Route path="/gmail-sell" element={<ProtectedRoute><GmailSellPage /></ProtectedRoute>} />
+          <Route path="/target-bonus" element={<ProtectedRoute><TargetBonusPage /></ProtectedRoute>} />
+          <Route path="/monthly-salary" element={<ProtectedRoute><MonthlySalaryPage /></ProtectedRoute>} />
+          <Route path="/leadership-salary" element={<ProtectedRoute><LeadershipSalaryPage /></ProtectedRoute>} />
+          <Route path="/gift-bonus" element={<ProtectedRoute><GiftBonusPage /></ProtectedRoute>} />
+          <Route path="/welcome-bonus" element={<ProtectedRoute><WelcomeBonusPage /></ProtectedRoute>} />
+          <Route path="/daily-bonus" element={<ProtectedRoute><DailyBonusPage /></ProtectedRoute>} />
+          <Route path="/spin-bonus" element={<ProtectedRoute><SpinBonusPage /></ProtectedRoute>} />
+          <Route path="/lottery" element={<ProtectedRoute><LotteryPage /></ProtectedRoute>} />
         </Routes>
       </main>
 
