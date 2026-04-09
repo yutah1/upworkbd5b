@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Ticket } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
 
 export const LotteryPage = () => {
@@ -40,6 +40,7 @@ export const LotteryPage = () => {
     } catch (error) {
       console.error("Error buying ticket:", error);
       setMessage('একটি ত্রুটি হয়েছে।');
+      handleFirestoreError(error, OperationType.WRITE, 'lotteryTickets');
     } finally {
       setBuying(false);
     }
