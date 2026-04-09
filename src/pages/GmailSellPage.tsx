@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mail, DollarSign, Send } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot, addDoc } from 'firebase/firestore';
 
 export const GmailSellPage = () => {
@@ -19,6 +19,8 @@ export const GmailSellPage = () => {
     const q = query(collection(db, 'gmailSellPosts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'gmailSellPosts');
     });
     return () => unsubscribe();
   }, []);
@@ -49,6 +51,7 @@ export const GmailSellPage = () => {
     } catch (error) {
       console.error("Error submitting account:", error);
       setSubmitMessage('একটি ত্রুটি হয়েছে।');
+      handleFirestoreError(error, OperationType.WRITE, 'gmailSellSubmissions');
     }
   };
 
