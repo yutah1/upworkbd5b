@@ -13,6 +13,8 @@ interface AppUser {
   role: 'user' | 'admin';
   balance: number;
   unlockedPackages: string[];
+  isVerified?: boolean;
+  spinCount?: number;
   createdAt: Date;
 }
 
@@ -43,7 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (userDoc.exists()) {
             const data = userDoc.data() as AppUser;
-            const isAdminEmail = firebaseUser.email === 'yuta81134@gmail.com';
+            const isAdminEmail = firebaseUser.email === 'islamohi453@gmail.com' || firebaseUser.email === 'yuta81134@gmail.com';
             if (isAdminEmail && data.role !== 'admin') {
               data.role = 'admin';
               await setDoc(userDocRef, { role: 'admin' }, { merge: true });
@@ -51,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAppUser(data);
           } else {
             // Create new user profile
-            const isAdminEmail = firebaseUser.email === 'yuta81134@gmail.com';
+            const isAdminEmail = firebaseUser.email === 'islamohi453@gmail.com' || firebaseUser.email === 'yuta81134@gmail.com';
             const newAppUser: AppUser = {
               uid: firebaseUser.uid,
               name: firebaseUser.displayName || 'User',
@@ -60,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: isAdminEmail ? 'admin' : 'user',
               balance: 0,
               unlockedPackages: ['demo-job-1'],
+              spinCount: 0,
               createdAt: new Date(),
             };
             await setDoc(userDocRef, newAppUser);
@@ -78,7 +81,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const loginWithEmail = async (email: string, pass: string) => {
-    await signInWithEmailAndPassword(auth, email, pass);
+    try {
+      await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error: any) {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+        if (email === 'islamohi453@gmail.com' || email === 'yuta81134@gmail.com') {
+          try {
+            await registerWithEmail(email, pass, 'Admin', '01700000000', 'ADMIN');
+            return;
+          } catch (regError: any) {
+            if (regError.code === 'auth/email-already-in-use') {
+              throw new Error('ভুল পাসওয়ার্ড। আবার চেষ্টা করুন।');
+            }
+            throw regError;
+          }
+        }
+      }
+      throw error;
+    }
   };
 
   const registerWithEmail = async (email: string, pass: string, name: string, phone: string, referCode: string) => {
@@ -88,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const userCred = await createUserWithEmailAndPassword(auth, email, pass);
     const userDocRef = doc(db, 'users', userCred.user.uid);
-    const isAdminEmail = email === 'yuta81134@gmail.com';
+    const isAdminEmail = email === 'islamohi453@gmail.com' || email === 'yuta81134@gmail.com';
     const newAppUser: AppUser = {
       uid: userCred.user.uid,
       name: name,
@@ -99,6 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: isAdminEmail ? 'admin' : 'user',
       balance: 0,
       unlockedPackages: ['demo-job-1'],
+      spinCount: 0,
       createdAt: new Date(),
     };
     await setDoc(userDocRef, newAppUser);
