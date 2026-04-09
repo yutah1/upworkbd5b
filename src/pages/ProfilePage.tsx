@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Mail, Phone, Lock, Copy, CheckCircle, Share2 } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db, auth } from '../firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { updatePassword, updateEmail, updateProfile } from 'firebase/auth';
 
@@ -57,6 +57,7 @@ export const ProfilePage = () => {
         setMessage({ text: 'নিরাপত্তার কারণে ইমেইল বা পাসওয়ার্ড পরিবর্তন করতে আপনাকে পুনরায় লগইন করতে হবে।', type: 'error' });
       } else {
         setMessage({ text: 'একটি ত্রুটি হয়েছে: ' + error.message, type: 'error' });
+        handleFirestoreError(error, OperationType.UPDATE, `users/${appUser?.uid}`);
       }
     } finally {
       setLoading(false);
