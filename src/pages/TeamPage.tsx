@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, User, CheckCircle, XCircle } from 'lucide-react';
 import { useAuth } from '../AuthContext';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 
 export const TeamPage = () => {
   const { appUser } = useAuth();
@@ -34,6 +34,7 @@ export const TeamPage = () => {
         setTeamMembers(membersWithStats);
       } catch (error) {
         console.error("Error fetching team:", error);
+        handleFirestoreError(error, OperationType.GET, 'users');
       } finally {
         setLoading(false);
       }
