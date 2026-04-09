@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Image as ImageIcon, Link as LinkIcon, Users, DollarSign } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 
 export const JobPostPage = () => {
@@ -65,6 +65,7 @@ export const JobPostPage = () => {
     } catch (error) {
       console.error("Error posting job:", error);
       setPostMessage('একটি ত্রুটি হয়েছে।');
+      handleFirestoreError(error, OperationType.WRITE, 'userMicroJobs');
     }
   };
 
