@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Target, DollarSign, Users } from 'lucide-react';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 
 export const TargetBonusPage = () => {
@@ -12,6 +12,8 @@ export const TargetBonusPage = () => {
     const q = query(collection(db, 'targetBonuses'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setBonuses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'targetBonuses');
     });
     return () => unsubscribe();
   }, []);
@@ -44,7 +46,7 @@ export const TargetBonusPage = () => {
                       <DollarSign size={16} /> ৳{bonus.amount}
                     </span>
                     <span className="flex items-center gap-1 text-gray-600 bg-gray-100 px-2 py-1 rounded-md">
-                      <Users size={16} /> টার্গেট: {bonus.target}
+                      <Users size={16} /> টার্গেট: {bonus.referralsNeeded}
                     </span>
                   </div>
                 </div>
