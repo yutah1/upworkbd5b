@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Wallet, ArrowDownCircle, ArrowUpCircle, Clock, Calendar, CheckCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { doc, getDoc, updateDoc, collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { AlertModal } from '../components/AlertModal';
 
@@ -13,12 +13,6 @@ export const WalletPage = () => {
   const [income24h, setIncome24h] = useState<number | null>(null);
   const [income7d, setIncome7d] = useState<number | null>(null);
   const [showWithdraw, setShowWithdraw] = useState(false);
-  const [showDeposit, setShowDeposit] = useState(false);
-  const [depositTrxId, setDepositTrxId] = useState('');
-  const [depositAmount, setDepositAmount] = useState('');
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [depositMessage, setDepositMessage] = useState('');
-  const [depositNumber, setDepositNumber] = useState('01XXXXXXXXX');
   const [alertDialog, setAlertDialog] = useState<{ isOpen: boolean; message: string } | null>(null);
   const showAlert = (message: string) => setAlertDialog({ isOpen: true, message });
 
@@ -49,18 +43,6 @@ export const WalletPage = () => {
         setIsMethodsLocked(appUser.paymentMethodsLocked || false);
       }
     }
-
-    const fetchDepositNumber = async () => {
-      try {
-        const docSnap = await getDoc(doc(db, 'settings', 'depositSettings'));
-        if (docSnap.exists() && docSnap.data().number) {
-          setDepositNumber(docSnap.data().number);
-        }
-      } catch (error) {
-        console.error("Error fetching deposit number:", error);
-      }
-    };
-    fetchDepositNumber();
   }, [appUser]);
 
   const fetchIncome = async (days: number) => {
@@ -158,62 +140,11 @@ export const WalletPage = () => {
     } catch (error) {
       console.error("Withdrawal error:", error);
       setWithdrawMessage('একটি ত্রুটি হয়েছে।');
+      handleFirestoreError(error, OperationType.WRITE, 'withdrawals');
     }
   };
 
-  const handleDepositVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !depositTrxId) return;
 
-    setIsVerifying(true);
-    setDepositMessage('যাচাই করা হচ্ছে...');
-
-    try {
-      // Call our backend API to verify the transaction
-      const response = await fetch('/api/verify-transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          transactionId: depositTrxId,
-          userId: user.uid
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success && data.amount > 0) {
-        // Add to deposits collection
-        await addDoc(collection(db, 'deposits'), {
-          userId: user.uid,
-          userName: appUser?.name || 'Unknown',
-          userEmail: appUser?.email || '',
-          amount: data.amount,
-          method: 'securecheckoutio', // Updated method
-          transactionId: depositTrxId,
-          status: 'approved',
-          createdAt: new Date()
-        });
-
-        // Update user balance
-        await updateDoc(doc(db, 'users', user.uid), {
-          balance: balance + data.amount
-        });
-
-        setBalance(prev => prev + data.amount);
-        setDepositMessage(`সফলভাবে ৳${data.amount} যোগ করা হয়েছে!`);
-        setDepositTrxId('');
-      } else {
-        setDepositMessage(data.message || 'ভুল ট্রানজেকশন আইডি বা ইতিমধ্যে ব্যবহৃত হয়েছে।');
-      }
-    } catch (error) {
-      console.error("Deposit verification error:", error);
-      setDepositMessage('সার্ভারে সমস্যা হচ্ছে, একটু পর আবার চেষ্টা করুন।');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
   return (
     <>
