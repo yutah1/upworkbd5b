@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 export const SpinBonusPage = () => {
   const { user, appUser } = useAuth();
@@ -11,41 +11,9 @@ export const SpinBonusPage = () => {
   const [spinning, setSpinning] = useState(false);
   const [message, setMessage] = useState('');
   const [rotation, setRotation] = useState(0);
-  const [canSpin, setCanSpin] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState('');
 
-  useEffect(() => {
-    if (appUser) {
-      checkSpinEligibility();
-    }
-  }, [appUser]);
-
-  const checkSpinEligibility = () => {
-    if (!appUser) return;
-    
-    const lastSpinTime = appUser.lastSpinTime ? new Date(appUser.lastSpinTime) : null;
-    const now = new Date();
-
-    if (!lastSpinTime) {
-      // First time spin (free spin on register)
-      setCanSpin(true);
-      setTimeRemaining('');
-    } else {
-      const timeDiff = now.getTime() - lastSpinTime.getTime();
-      const hours24 = 24 * 60 * 60 * 1000;
-      
-      if (timeDiff >= hours24) {
-        setCanSpin(true);
-        setTimeRemaining('');
-      } else {
-        setCanSpin(false);
-        const remaining = hours24 - timeDiff;
-        const hours = Math.floor(remaining / (1000 * 60 * 60));
-        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-        setTimeRemaining(`${hours} ঘণ্টা ${minutes} মিনিট পর আবার স্পিন করতে পারবেন`);
-      }
-    }
-  };
+  const spinCount = appUser?.spinCount || 0;
+  const canSpin = spinCount > 0;
 
   const handleSpin = async () => {
     if (!user || !appUser || spinning || !canSpin) return;
@@ -62,14 +30,13 @@ export const SpinBonusPage = () => {
       try {
         await updateDoc(doc(db, 'users', user.uid), {
           balance: (appUser.balance || 0) + winAmount,
-          lastSpinTime: new Date().toISOString()
+          spinCount: spinCount - 1
         });
         setMessage(`অভিনন্দন! আপনি ৳${winAmount} জিতেছেন!`);
-        setCanSpin(false);
-        setTimeRemaining('24 ঘণ্টা 0 মিনিট পর আবার স্পিন করতে পারবেন');
       } catch (error) {
         console.error("Error adding win balance:", error);
         setMessage('একটি ত্রুটি হয়েছে।');
+        handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
       }
       setSpinning(false);
     }, 3000); // Wait for spin animation
@@ -87,7 +54,7 @@ export const SpinBonusPage = () => {
       <div className="p-4 max-w-md mx-auto mt-8 text-center">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-indigo-100 flex flex-col items-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">লাকি স্পিন</h2>
-          <p className="text-gray-600 mb-8">প্রতি ২৪ ঘণ্টায় একবার স্পিন করুন।</p>
+          <p className="text-gray-600 mb-8">আপনার কাছে <strong>{spinCount}</strong> টি স্পিন বাকি আছে।</p>
 
           <div className="relative w-64 h-64 mb-8">
             <div 
@@ -119,9 +86,9 @@ export const SpinBonusPage = () => {
             </div>
           )}
 
-          {!canSpin && timeRemaining && (
+          {!canSpin && (
             <div className="w-full p-3 rounded-xl mb-6 text-sm font-medium bg-orange-50 text-orange-700 border border-orange-200">
-              {timeRemaining}
+              আপনার কোনো স্পিন বাকি নেই। রেফার করে বা প্যাকেজ কিনে স্পিন অর্জন করুন।
             </div>
           )}
 
@@ -130,7 +97,7 @@ export const SpinBonusPage = () => {
             disabled={spinning || !canSpin}
             className={`w-full py-4 rounded-xl font-bold text-lg transition ${spinning || !canSpin ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-200'}`}
           >
-            {spinning ? 'স্পিন হচ্ছে...' : (!canSpin ? 'স্পিন লকড' : 'স্পিন করুন (ফ্রি)')}
+            {spinning ? 'স্পিন হচ্ছে...' : (!canSpin ? 'স্পিন নেই' : 'স্পিন করুন')}
           </button>
         </div>
       </div>
