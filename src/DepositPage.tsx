@@ -64,6 +64,7 @@ export const DepositPage = () => {
       setSuccess(true);
     } catch (err: any) {
       setError(err.message || 'Failed to submit deposit request');
+      handleFirestoreError(err, OperationType.WRITE, 'deposits');
     } finally {
       setLoading(false);
     }
