@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, DollarSign } from 'lucide-react';
 import { useAuth } from '../AuthContext';
-import { db } from '../firebase';
+import { db, handleFirestoreError, OperationType } from '../firebase';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 
 export const MicroJobsPage = () => {
@@ -15,6 +15,8 @@ export const MicroJobsPage = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const jobsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setJobs(jobsData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'userMicroJobs');
     });
     return () => unsubscribe();
   }, []);
