@@ -78,7 +78,8 @@ export const PremiumBuyPage = () => {
       const userRef = doc(db, 'users', appUser.uid);
       await updateDoc(userRef, {
         balance: appUser.balance - selectedPackage.price,
-        unlockedPackages: arrayUnion(selectedPackage.id)
+        unlockedPackages: arrayUnion(selectedPackage.id),
+        spinCount: (appUser.spinCount || 0) + 1
       });
       
       setShowConfirmPopup(false);
@@ -87,6 +88,7 @@ export const PremiumBuyPage = () => {
       showAlert('Package unlocked successfully!');
     } catch (err: any) {
       setError(err.message || 'Failed to buy package');
+      handleFirestoreError(err, OperationType.UPDATE, `users/${appUser.uid}`);
     } finally {
       setLoading(false);
     }
