@@ -28,6 +28,8 @@ export const AdminPanel = () => {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [editBalance, setEditBalance] = useState<number>(0);
+  const [editReferCount, setEditReferCount] = useState<number>(0);
+  const [editWalletAddress, setEditWalletAddress] = useState<string>('');
 
   // Premium Jobs State
   const [premiumJobs, setPremiumJobs] = useState<any[]>([]);
@@ -35,36 +37,42 @@ export const AdminPanel = () => {
   const [editingJobId, setEditingJobId] = useState<string | null>(null);
   const [editJobForm, setEditJobForm] = useState({ title: '', description: '', expiredDate: '', price: 0, dailyReward: 0, buyerLimit: 0, thumbnail: '' });
 
+  // Premium Packages State
+  const [premiumPackages, setPremiumPackages] = useState<any[]>([]);
+  const [newPackage, setNewPackage] = useState({ title: '', description: '', expiredDate: '', price: 0, buyerLimit: 0, thumbnail: '' });
+  const [editingPackageId, setEditingPackageId] = useState<string | null>(null);
+  const [editPackageForm, setEditPackageForm] = useState({ title: '', description: '', expiredDate: '', price: 0, buyerLimit: 0, thumbnail: '' });
+
   // Micro Jobs State
   const [microJobs, setMicroJobs] = useState<any[]>([]);
-  const [newMicroJob, setNewMicroJob] = useState({ category: '', prize: 0, limit: 0 });
+  const [newMicroJob, setNewMicroJob] = useState({ category: '', description: '', expiredDate: '', prize: 0, limit: 0 });
 
   // Daily Tasks State
   const [userMicroJobs, setUserMicroJobs] = useState<any[]>([]);
   const [dailyTasks, setDailyTasks] = useState<any[]>([]);
-  const [newDailyTask, setNewDailyTask] = useState({ title: '', amount: 0, duration: '' });
+  const [newDailyTask, setNewDailyTask] = useState({ title: '', description: '', expiredDate: '', amount: 0, duration: '' });
 
   // Target Bonuses State
   const [targetBonuses, setTargetBonuses] = useState<any[]>([]);
-  const [newTargetBonus, setNewTargetBonus] = useState({ title: '', amount: 0, packagePrice: 0, referralsNeeded: 0 });
+  const [newTargetBonus, setNewTargetBonus] = useState({ title: '', description: '', expiredDate: '', amount: 0, packagePrice: 0, referralsNeeded: 0 });
 
   // Gift Bonuses State
   const [giftBonuses, setGiftBonuses] = useState<any[]>([]);
-  const [newGiftBonus, setNewGiftBonus] = useState({ title: '', amount: 0, redeemCode: '' });
+  const [newGiftBonus, setNewGiftBonus] = useState({ title: '', description: '', expiredDate: '', amount: 0, redeemCode: '' });
 
   // Welcome Bonuses State
   const [welcomeBonuses, setWelcomeBonuses] = useState<any[]>([]);
-  const [newWelcomeBonus, setNewWelcomeBonus] = useState({ title: '', description: '', amount: 0 });
+  const [newWelcomeBonus, setNewWelcomeBonus] = useState({ title: '', description: '', expiredDate: '', amount: 0 });
   const [welcomeBonusSubmissions, setWelcomeBonusSubmissions] = useState<any[]>([]);
 
   // Facebook Sell State
   const [fbPosts, setFbPosts] = useState<any[]>([]);
-  const [newFbPost, setNewFbPost] = useState({ title: '', description: '', amount: 0 });
+  const [newFbPost, setNewFbPost] = useState({ title: '', description: '', expiredDate: '', amount: 0 });
   const [fbSubmissions, setFbSubmissions] = useState<any[]>([]);
 
   // Gmail Sell State
   const [gmailPosts, setGmailPosts] = useState<any[]>([]);
-  const [newGmailPost, setNewGmailPost] = useState({ title: '', description: '', amount: 0, requiredPassword: '' });
+  const [newGmailPost, setNewGmailPost] = useState({ title: '', description: '', expiredDate: '', amount: 0, requiredPassword: '' });
   const [gmailSubmissions, setGmailSubmissions] = useState<any[]>([]);
 
   // Daily Bonus State
@@ -87,17 +95,17 @@ export const AdminPanel = () => {
 
   // Monthly Salary State
   const [monthlySalaries, setMonthlySalaries] = useState<any[]>([]);
-  const [newMonthlySalary, setNewMonthlySalary] = useState({ title: '', description: '', amount: 0, target: 0 });
+  const [newMonthlySalary, setNewMonthlySalary] = useState({ title: '', description: '', expiredDate: '', amount: 0, target: 0 });
   const [monthlySalarySubmissions, setMonthlySalarySubmissions] = useState<any[]>([]);
 
   // Leadership Salary State
   const [leadershipSalaries, setLeadershipSalaries] = useState<any[]>([]);
-  const [newLeadershipSalary, setNewLeadershipSalary] = useState({ title: '', description: '', amount: 0, target: 0 });
+  const [newLeadershipSalary, setNewLeadershipSalary] = useState({ title: '', description: '', expiredDate: '', amount: 0, target: 0 });
   const [leadershipSalarySubmissions, setLeadershipSalarySubmissions] = useState<any[]>([]);
 
   // Video Earn State
   const [videoTasks, setVideoTasks] = useState<any[]>([]);
-  const [newVideoTask, setNewVideoTask] = useState({ title: '', reward: 0, duration: 0, videoUrl: '' });
+  const [newVideoTask, setNewVideoTask] = useState({ title: '', description: '', expiredDate: '', reward: 0, duration: 0, videoUrl: '' });
 
   // Withdrawals State (Payments)
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -139,6 +147,14 @@ export const AdminPanel = () => {
       setPremiumJobs(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'premiumJobs');
+    });
+
+    // Fetch Premium Packages
+    const qPackages = query(collection(db, 'premiumPackages'), orderBy('createdAt', 'desc'));
+    const unsubscribePackages = onSnapshot(qPackages, (snapshot) => {
+      setPremiumPackages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'premiumPackages');
     });
 
     // Fetch Deposits
@@ -323,6 +339,7 @@ export const AdminPanel = () => {
     return () => {
       unsubStats();
       unsubscribeJobs();
+      unsubscribePackages();
       unsubscribeDeposits();
       unsubscribeUsers();
       unsubscribeFbPosts();
@@ -422,12 +439,21 @@ export const AdminPanel = () => {
   };
 
   // --- User Management Handlers ---
-  const handleSaveUserBalance = async () => {
+  const handleSaveUserDetails = async () => {
     if (!isAdmin || !selectedUser) return;
     try {
-      await setDoc(doc(db, 'users', selectedUser.id), { balance: editBalance }, { merge: true });
-      setSelectedUser({ ...selectedUser, balance: editBalance });
-      showAlert("Balance updated successfully!");
+      await setDoc(doc(db, 'users', selectedUser.id), { 
+        balance: editBalance,
+        referCount: editReferCount,
+        walletAddress: editWalletAddress
+      }, { merge: true });
+      setSelectedUser({ 
+        ...selectedUser, 
+        balance: editBalance,
+        referCount: editReferCount,
+        walletAddress: editWalletAddress
+      });
+      showAlert("User details updated successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${selectedUser.id}`);
     }
@@ -491,9 +517,9 @@ export const AdminPanel = () => {
     try {
       await addDoc(collection(db, 'premiumJobs'), {
         ...newJob,
-        price: Number(newJob.price),
-        dailyReward: Number(newJob.dailyReward),
-        buyerLimit: Number(newJob.buyerLimit),
+        price: Number(newJob.price || 0),
+        dailyReward: Number(newJob.dailyReward || 0),
+        buyerLimit: Number(newJob.buyerLimit || 0),
         buyersCount: 0,
         isActive: true,
         createdAt: new Date()
@@ -544,13 +570,84 @@ export const AdminPanel = () => {
     try {
       await setDoc(doc(db, 'premiumJobs', id), {
         ...editJobForm,
-        price: Number(editJobForm.price),
-        dailyReward: Number(editJobForm.dailyReward),
-        buyerLimit: Number(editJobForm.buyerLimit),
+        price: Number(editJobForm.price || 0),
+        dailyReward: Number(editJobForm.dailyReward || 0),
+        buyerLimit: Number(editJobForm.buyerLimit || 0),
       }, { merge: true });
       setEditingJobId(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `premiumJobs/${id}`);
+    }
+  };
+
+  // --- Premium Packages Handlers ---
+  const handleAddPackage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return showAlert("Access Denied");
+    try {
+      await addDoc(collection(db, 'premiumPackages'), {
+        ...newPackage,
+        price: Number(newPackage.price || 0),
+        buyerLimit: Number(newPackage.buyerLimit || 0),
+        buyersCount: 0,
+        isActive: true,
+        createdAt: new Date()
+      });
+      setNewPackage({ title: '', description: '', expiredDate: '', price: 0, buyerLimit: 0, thumbnail: '' });
+      showAlert("Package added successfully!");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'premiumPackages');
+    }
+  };
+
+  const handleDeletePackage = async (id: string) => {
+    if (!isAdmin) return showAlert("Access Denied");
+    showConfirm("Are you sure you want to delete this package?", async () => {
+      try {
+        await deleteDoc(doc(db, 'premiumPackages', id));
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `premiumPackages/${id}`);
+      }
+    });
+  };
+
+  const handleTogglePackageStatus = async (id: string, currentStatus: boolean) => {
+    if (!isAdmin) return showAlert("Access Denied");
+    try {
+      await setDoc(doc(db, 'premiumPackages', id), { isActive: !currentStatus }, { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `premiumPackages/${id}`);
+    }
+  };
+
+  const startEditingPackage = (pkg: any) => {
+    if (!isAdmin) return showAlert("Access Denied");
+    setEditingPackageId(pkg.id);
+    setEditPackageForm({
+      title: pkg.title || '',
+      description: pkg.description || '',
+      expiredDate: pkg.expiredDate || '',
+      price: pkg.price || 0,
+      buyerLimit: pkg.buyerLimit || 0,
+      thumbnail: pkg.thumbnail || ''
+    });
+  };
+
+  const cancelEditingPackage = () => {
+    setEditingPackageId(null);
+  };
+
+  const saveEditPackage = async (id: string) => {
+    if (!isAdmin) return showAlert("Access Denied");
+    try {
+      await setDoc(doc(db, 'premiumPackages', id), {
+        ...editPackageForm,
+        price: Number(editPackageForm.price || 0),
+        buyerLimit: Number(editPackageForm.buyerLimit || 0),
+      }, { merge: true });
+      setEditingPackageId(null);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `premiumPackages/${id}`);
     }
   };
 
@@ -566,7 +663,7 @@ export const AdminPanel = () => {
         completedCount: 0,
         createdAt: new Date()
       });
-      setNewMicroJob({ category: '', prize: 0, limit: 0 });
+      setNewMicroJob({ category: '', description: '', expiredDate: '', prize: 0, limit: 0 });
       showAlert("Micro Job added successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'microJobs');
@@ -604,7 +701,7 @@ export const AdminPanel = () => {
         amount: Number(newDailyTask.amount),
         createdAt: new Date()
       });
-      setNewDailyTask({ title: '', amount: 0, duration: '' });
+      setNewDailyTask({ title: '', description: '', expiredDate: '', amount: 0, duration: '' });
       showAlert("Daily Task added successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'dailyTasks');
@@ -634,7 +731,7 @@ export const AdminPanel = () => {
         referralsNeeded: Number(newTargetBonus.referralsNeeded),
         createdAt: new Date()
       });
-      setNewTargetBonus({ title: '', amount: 0, packagePrice: 0, referralsNeeded: 0 });
+      setNewTargetBonus({ title: '', description: '', expiredDate: '', amount: 0, packagePrice: 0, referralsNeeded: 0 });
       showAlert("Target Bonus added successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'targetBonuses');
@@ -662,7 +759,7 @@ export const AdminPanel = () => {
         amount: Number(newGiftBonus.amount),
         createdAt: new Date()
       });
-      setNewGiftBonus({ title: '', amount: 0, redeemCode: '' });
+      setNewGiftBonus({ title: '', description: '', expiredDate: '', amount: 0, redeemCode: '' });
       showAlert("Gift Bonus added successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'giftBonuses');
@@ -690,7 +787,7 @@ export const AdminPanel = () => {
         amount: Number(newWelcomeBonus.amount),
         createdAt: new Date()
       });
-      setNewWelcomeBonus({ title: '', description: '', amount: 0 });
+      setNewWelcomeBonus({ title: '', description: '', expiredDate: '', amount: 0 });
       showAlert("Welcome Bonus added successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'welcomeBonuses');
@@ -719,7 +816,7 @@ export const AdminPanel = () => {
         isActive: true,
         createdAt: new Date()
       });
-      setNewFbPost({ title: '', description: '', amount: 0 });
+      setNewFbPost({ title: '', description: '', expiredDate: '', amount: 0 });
       showAlert("Facebook Sell post added!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'facebookSellPosts');
@@ -759,7 +856,7 @@ export const AdminPanel = () => {
         isActive: true,
         createdAt: new Date()
       });
-      setNewGmailPost({ title: '', description: '', amount: 0, requiredPassword: '' });
+      setNewGmailPost({ title: '', description: '', expiredDate: '', amount: 0, requiredPassword: '' });
       showAlert("Gmail Sell post added!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'gmailSellPosts');
@@ -840,7 +937,7 @@ export const AdminPanel = () => {
         target: Number(newMonthlySalary.target),
         createdAt: new Date()
       });
-      setNewMonthlySalary({ title: '', description: '', amount: 0, target: 0 });
+      setNewMonthlySalary({ title: '', description: '', expiredDate: '', amount: 0, target: 0 });
       showAlert("Monthly Salary added!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'monthlySalaries');
@@ -869,7 +966,7 @@ export const AdminPanel = () => {
         target: Number(newLeadershipSalary.target),
         createdAt: new Date()
       });
-      setNewLeadershipSalary({ title: '', description: '', amount: 0, target: 0 });
+      setNewLeadershipSalary({ title: '', description: '', expiredDate: '', amount: 0, target: 0 });
       showAlert("Leadership Salary added!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'leadershipSalaries');
@@ -898,7 +995,7 @@ export const AdminPanel = () => {
         duration: Number(newVideoTask.duration),
         createdAt: new Date()
       });
-      setNewVideoTask({ title: '', reward: 0, duration: 0, videoUrl: '' });
+      setNewVideoTask({ title: '', description: '', expiredDate: '', reward: 0, duration: 0, videoUrl: '' });
       showAlert("Video Earn task added!");
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'videoEarnTasks');
@@ -1054,7 +1151,10 @@ export const AdminPanel = () => {
             <Grid size={20} /> গ্রিড অপশন
           </button>
           <button onClick={() => { setActiveTab('premiumJobs'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'premiumJobs' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
-            <Briefcase size={20} /> প্রিমিয়াম জবস
+            <Briefcase size={20} /> Premium Kaj
+          </button>
+          <button onClick={() => { setActiveTab('premiumPackages'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'premiumPackages' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
+            <CreditCard size={20} /> Premium Kinun
           </button>
           <button onClick={() => { setActiveTab('microJobs'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'microJobs' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
             <Briefcase size={20} /> ছোট কাজ
@@ -1342,7 +1442,7 @@ export const AdminPanel = () => {
 
         {activeTab === 'premiumJobs' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <h2 className="text-2xl font-bold text-gray-800">প্রিমিয়াম জবস ম্যানেজমেন্ট</h2>
+            <h2 className="text-2xl font-bold text-gray-800">Premium Kaj ম্যানেজমেন্ট</h2>
             
             {/* Add New Job Form */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -1357,7 +1457,13 @@ export const AdminPanel = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
-                    <input type="text" value={newJob.expiredDate} onChange={e => setNewJob({...newJob, expiredDate: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 7 Days" />
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newJob.expiredDate === 'Unlimited'} value={newJob.expiredDate === 'Unlimited' ? '' : newJob.expiredDate} onChange={e => setNewJob({...newJob, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newJob.expiredDate === 'Unlimited'} onChange={(e) => setNewJob({...newJob, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">মূল্য (৳)</label>
@@ -1727,6 +1833,16 @@ export const AdminPanel = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">টার্গেট (রেফারেল/পয়েন্ট)</label>
                     <input type="number" min="0" value={newMonthlySalary.target} onChange={e => setNewMonthlySalary({...newMonthlySalary, target: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newMonthlySalary.expiredDate === 'Unlimited'} value={newMonthlySalary.expiredDate === 'Unlimited' ? '' : newMonthlySalary.expiredDate} onChange={e => setNewMonthlySalary({...newMonthlySalary, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newMonthlySalary.expiredDate === 'Unlimited'} onChange={(e) => setNewMonthlySalary({...newMonthlySalary, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">টিয়ার যোগ করুন</button>
               </form>
@@ -1814,6 +1930,16 @@ export const AdminPanel = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">টার্গেট (টিমের আকার)</label>
                     <input type="number" min="0" value={newLeadershipSalary.target} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, target: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
+                  <div className="md:col-span-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newLeadershipSalary.expiredDate === 'Unlimited'} value={newLeadershipSalary.expiredDate === 'Unlimited' ? '' : newLeadershipSalary.expiredDate} onChange={e => setNewLeadershipSalary({...newLeadershipSalary, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newLeadershipSalary.expiredDate === 'Unlimited'} onChange={(e) => setNewLeadershipSalary({...newLeadershipSalary, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">টিয়ার যোগ করুন</button>
               </form>
@@ -1900,6 +2026,20 @@ export const AdminPanel = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">ভিডিও URL (YouTube Embed)</label>
                     <input type="text" value={newVideoTask.videoUrl} onChange={e => setNewVideoTask({...newVideoTask, videoUrl: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="https://www.youtube.com/embed/..." />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newVideoTask.expiredDate === 'Unlimited'} value={newVideoTask.expiredDate === 'Unlimited' ? '' : newVideoTask.expiredDate} onChange={e => setNewVideoTask({...newVideoTask, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newVideoTask.expiredDate === 'Unlimited'} onChange={(e) => setNewVideoTask({...newVideoTask, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">বিবরণ</label>
+                    <textarea value={newVideoTask.description} onChange={e => setNewVideoTask({...newVideoTask, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের জন্য নির্দেশাবলী..." rows={3} />
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">ভিডিও টাস্ক যোগ করুন</button>
@@ -2031,7 +2171,12 @@ export const AdminPanel = () => {
                   <div className="p-8 text-center text-gray-500">কোনো ইউজার পাওয়া যায়নি।</div>
                 ) : (
                   usersList.map(u => (
-                    <div key={u.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition cursor-pointer" onClick={() => { setSelectedUser(u); setEditBalance(u.balance || 0); }}>
+                    <div key={u.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition cursor-pointer" onClick={() => { 
+                      setSelectedUser(u); 
+                      setEditBalance(u.balance || 0); 
+                      setEditReferCount(u.referCount || 0);
+                      setEditWalletAddress(u.walletAddress || '');
+                    }}>
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold">
                           {u.name?.charAt(0).toUpperCase() || 'U'}
@@ -2083,12 +2228,20 @@ export const AdminPanel = () => {
                   <p className="font-medium text-gray-900">{selectedUser.referId}</p>
                 </div>
                 
-                <div className="pt-4 border-t">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ব্যালেন্স এডিট করুন (৳)</label>
-                  <div className="flex gap-2">
-                    <input type="number" value={editBalance} onChange={(e) => setEditBalance(Number(e.target.value))} className="flex-1 px-3 py-2 border border-gray-300 rounded-md" />
-                    <button onClick={handleSaveUserBalance} className="bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition">সংরক্ষণ করুন</button>
+                <div className="pt-4 border-t space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ব্যালেন্স এডিট করুন (৳)</label>
+                    <input type="number" value={editBalance} onChange={(e) => setEditBalance(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">রেফার সংখ্যা এডিট করুন</label>
+                    <input type="number" value={editReferCount} onChange={(e) => setEditReferCount(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ওয়ালেট অ্যাড্রেস এডিট করুন</label>
+                    <input type="text" value={editWalletAddress} onChange={(e) => setEditWalletAddress(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ওয়ালেট অ্যাড্রেস" />
+                  </div>
+                  <button onClick={handleSaveUserDetails} className="w-full bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition">সংরক্ষণ করুন</button>
                 </div>
 
                 <div className="pt-4 border-t flex gap-3">
@@ -2305,6 +2458,132 @@ export const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === 'premiumPackages' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <h2 className="text-2xl font-bold text-gray-800">Premium Kinun ম্যানেজমেন্ট</h2>
+            
+            {/* Add New Package Form */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2"><Plus size={20}/> নতুন প্যাকেজ পোস্ট করুন</h3>
+              </div>
+              <form onSubmit={handleAddPackage} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">প্যাকেজের শিরোনাম</label>
+                    <input type="text" value={newPackage.title} onChange={e => setNewPackage({...newPackage, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: Premium Package 1" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newPackage.expiredDate === 'Unlimited'} value={newPackage.expiredDate === 'Unlimited' ? '' : newPackage.expiredDate} onChange={e => setNewPackage({...newPackage, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 30 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newPackage.expiredDate === 'Unlimited'} onChange={(e) => setNewPackage({...newPackage, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মূল্য (৳)</label>
+                    <input type="number" min="0" value={newPackage.price} onChange={e => setNewPackage({...newPackage, price: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ক্রেতার সীমা</label>
+                    <input type="number" min="1" value={newPackage.buyerLimit} onChange={e => setNewPackage({...newPackage, buyerLimit: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">থাম্বনেইল URL (ঐচ্ছিক)</label>
+                  <input type="url" value={newPackage.thumbnail} onChange={e => setNewPackage({...newPackage, thumbnail: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="https://example.com/image.jpg" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">নির্দেশিকা / বিবরণ</label>
+                  <textarea rows={4} value={newPackage.description} onChange={e => setNewPackage({...newPackage, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="প্যাকেজের বিস্তারিত বিবরণ..."></textarea>
+                </div>
+                <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">প্যাকেজ পোস্ট করুন</button>
+              </form>
+            </div>
+
+            {/* Packages List */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-4 bg-gray-50 border-b border-gray-200">
+                <h3 className="font-bold text-gray-800">বিদ্যমান প্যাকেজসমূহ</h3>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {premiumPackages.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">এখনও কোনো প্যাকেজ পোস্ট করা হয়নি।</div>
+                ) : (
+                  premiumPackages.map(pkg => (
+                    <div key={pkg.id} className={`p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 ${pkg.isActive ? '' : 'bg-gray-50 opacity-75'}`}>
+                      {editingPackageId === pkg.id ? (
+                        <div className="flex-1 space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">শিরোনাম</label>
+                              <input type="text" value={editPackageForm.title} onChange={e => setEditPackageForm({...editPackageForm, title: e.target.value})} className="w-full px-3 py-1.5 border border-emerald-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="শিরোনাম" />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">থাম্বনেইল URL</label>
+                              <input type="url" value={editPackageForm.thumbnail} onChange={e => setEditPackageForm({...editPackageForm, thumbnail: e.target.value})} className="w-full px-3 py-1.5 border border-emerald-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="থাম্বনেইল URL" />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">মেয়াদ</label>
+                              <input type="text" value={editPackageForm.expiredDate} onChange={e => setEditPackageForm({...editPackageForm, expiredDate: e.target.value})} className="w-full px-3 py-1.5 border border-emerald-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="মেয়াদ" />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">মূল্য</label>
+                              <input type="number" value={editPackageForm.price} onChange={e => setEditPackageForm({...editPackageForm, price: Number(e.target.value)})} className="w-full px-3 py-1.5 border border-emerald-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="মূল্য" />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">ক্রেতার সীমা</label>
+                              <input type="number" value={editPackageForm.buyerLimit} onChange={e => setEditPackageForm({...editPackageForm, buyerLimit: Number(e.target.value)})} className="w-full px-3 py-1.5 border border-emerald-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="ক্রেতার সীমা" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">বিবরণ</label>
+                            <textarea rows={2} value={editPackageForm.description} onChange={e => setEditPackageForm({...editPackageForm, description: e.target.value})} className="w-full px-3 py-1.5 border border-emerald-300 rounded focus:outline-none focus:ring-1 focus:ring-emerald-500" placeholder="বিবরণ"></textarea>
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => saveEditPackage(pkg.id)} className="px-4 py-1.5 bg-emerald-600 text-white text-sm rounded hover:bg-emerald-700 transition">সেভ করুন</button>
+                            <button onClick={cancelEditingPackage} className="px-4 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition">বাতিল</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-center gap-4">
+                            {pkg.thumbnail && (
+                              <img src={pkg.thumbnail} alt={pkg.title} className="w-16 h-16 object-cover rounded border border-gray-200" referrerPolicy="no-referrer" />
+                            )}
+                            <div>
+                              <h4 className="font-bold text-gray-800">{pkg.title}</h4>
+                              <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 mt-1">
+                                <span>মূল্য: ৳{pkg.price}</span>
+                                <span>মেয়াদ: {pkg.expiredDate}</span>
+                                <span>ক্রেতা: {pkg.buyersCount || 0} / {pkg.buyerLimit || '∞'}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => startEditingPackage(pkg)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition" title="এডিট করুন">
+                              <Edit2 size={18} />
+                            </button>
+                            <button onClick={() => handleDeletePackage(pkg.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition" title="ডিলিট করুন">
+                              <Trash2 size={18} />
+                            </button>
+                            <button onClick={() => handleTogglePackageStatus(pkg.id, pkg.isActive)} className={`p-2 rounded-lg transition ${pkg.isActive ? 'text-emerald-600 hover:bg-emerald-50' : 'text-gray-400 hover:bg-gray-100'}`} title={pkg.isActive ? 'নিষ্ক্রিয় করুন' : 'সক্রিয় করুন'}>
+                              {pkg.isActive ? <Eye size={18} /> : <EyeOff size={18} />}
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'microJobs' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
             <h2 className="text-2xl font-bold text-gray-800">ছোট কাজ ম্যানেজমেন্ট</h2>
@@ -2325,6 +2604,20 @@ export const AdminPanel = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">লিমিট (ইউজার)</label>
                     <input type="number" min="1" value={newMicroJob.limit} onChange={e => setNewMicroJob({...newMicroJob, limit: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newMicroJob.expiredDate === 'Unlimited'} value={newMicroJob.expiredDate === 'Unlimited' ? '' : newMicroJob.expiredDate} onChange={e => setNewMicroJob({...newMicroJob, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newMicroJob.expiredDate === 'Unlimited'} onChange={(e) => setNewMicroJob({...newMicroJob, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">কাজের বিবরণ / নির্দেশিকা</label>
+                  <textarea rows={3} value={newMicroJob.description} onChange={e => setNewMicroJob({...newMicroJob, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="কাজের বিস্তারিত বিবরণ..."></textarea>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">মাইক্রো জব যোগ করুন</button>
               </form>
@@ -2399,6 +2692,20 @@ export const AdminPanel = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">সময়কাল</label>
                     <input type="text" value={newDailyTask.duration} onChange={e => setNewDailyTask({...newDailyTask, duration: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: 24 hours" />
                   </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newDailyTask.expiredDate === 'Unlimited'} value={newDailyTask.expiredDate === 'Unlimited' ? '' : newDailyTask.expiredDate} onChange={e => setNewDailyTask({...newDailyTask, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newDailyTask.expiredDate === 'Unlimited'} onChange={(e) => setNewDailyTask({...newDailyTask, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">কাজের বিবরণ / নির্দেশিকা</label>
+                  <textarea rows={3} value={newDailyTask.description} onChange={e => setNewDailyTask({...newDailyTask, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="কাজের বিস্তারিত বিবরণ..."></textarea>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">ডেইলি টাস্ক যোগ করুন</button>
               </form>
@@ -2453,6 +2760,20 @@ export const AdminPanel = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">প্রয়োজনীয় রেফারেল</label>
                     <input type="number" min="1" value={newTargetBonus.referralsNeeded} onChange={e => setNewTargetBonus({...newTargetBonus, referralsNeeded: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newTargetBonus.expiredDate === 'Unlimited'} value={newTargetBonus.expiredDate === 'Unlimited' ? '' : newTargetBonus.expiredDate} onChange={e => setNewTargetBonus({...newTargetBonus, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newTargetBonus.expiredDate === 'Unlimited'} onChange={(e) => setNewTargetBonus({...newTargetBonus, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">বিবরণ / নির্দেশিকা</label>
+                  <textarea rows={3} value={newTargetBonus.description} onChange={e => setNewTargetBonus({...newTargetBonus, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="বিস্তারিত বিবরণ..."></textarea>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">টার্গেট বোনাস যোগ করুন</button>
               </form>
@@ -2503,6 +2824,20 @@ export const AdminPanel = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">রিডিম কোড</label>
                     <input type="text" value={newGiftBonus.redeemCode} onChange={e => setNewGiftBonus({...newGiftBonus, redeemCode: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: EID2026" />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newGiftBonus.expiredDate === 'Unlimited'} value={newGiftBonus.expiredDate === 'Unlimited' ? '' : newGiftBonus.expiredDate} onChange={e => setNewGiftBonus({...newGiftBonus, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newGiftBonus.expiredDate === 'Unlimited'} onChange={(e) => setNewGiftBonus({...newGiftBonus, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">বিবরণ / নির্দেশিকা</label>
+                  <textarea rows={3} value={newGiftBonus.description} onChange={e => setNewGiftBonus({...newGiftBonus, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="বিস্তারিত বিবরণ..."></textarea>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">গিফট বোনাস যোগ করুন</button>
               </form>
@@ -2540,7 +2875,7 @@ export const AdminPanel = () => {
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2"><Plus size={20}/> স্বাগতম বোনাস যোগ করুন</h3>
               <form onSubmit={handleAddWelcomeBonus} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">শিরোনাম</label>
                     <input type="text" value={newWelcomeBonus.title} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, title: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="যেমন: New User Bonus" />
@@ -2552,6 +2887,16 @@ export const AdminPanel = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">বোনাসের পরিমাণ (৳)</label>
                     <input type="number" min="0" value={newWelcomeBonus.amount} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newWelcomeBonus.expiredDate === 'Unlimited'} value={newWelcomeBonus.expiredDate === 'Unlimited' ? '' : newWelcomeBonus.expiredDate} onChange={e => setNewWelcomeBonus({...newWelcomeBonus, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newWelcomeBonus.expiredDate === 'Unlimited'} onChange={(e) => setNewWelcomeBonus({...newWelcomeBonus, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
                   </div>
                 </div>
                 <button type="submit" className="px-6 py-2 bg-emerald-600 text-white font-medium rounded-md hover:bg-emerald-700 transition">পোস্ট করুন</button>
@@ -2635,6 +2980,16 @@ export const AdminPanel = () => {
                     <input type="number" min="0" value={newFbPost.amount} onChange={e => setNewFbPost({...newFbPost, amount: Number(e.target.value)})} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newFbPost.expiredDate === 'Unlimited'} value={newFbPost.expiredDate === 'Unlimited' ? '' : newFbPost.expiredDate} onChange={e => setNewFbPost({...newFbPost, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newFbPost.expiredDate === 'Unlimited'} onChange={(e) => setNewFbPost({...newFbPost, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">বিবরণ</label>
                     <textarea value={newFbPost.description} onChange={e => setNewFbPost({...newFbPost, description: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের জন্য নির্দেশাবলী..." rows={3} />
                   </div>
@@ -2715,6 +3070,16 @@ export const AdminPanel = () => {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">প্রয়োজনীয় পাসওয়ার্ড</label>
                     <input type="text" value={newGmailPost.requiredPassword} onChange={e => setNewGmailPost({...newGmailPost, requiredPassword: e.target.value})} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ইউজারদের যে পাসওয়ার্ড ব্যবহার করতে হবে..." />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">মেয়াদ (সময়কাল)</label>
+                    <div className="flex gap-2 items-center">
+                      <input type="text" disabled={newGmailPost.expiredDate === 'Unlimited'} value={newGmailPost.expiredDate === 'Unlimited' ? '' : newGmailPost.expiredDate} onChange={e => setNewGmailPost({...newGmailPost, expiredDate: e.target.value})} className="flex-1 px-3 py-2 border border-gray-300 rounded-md disabled:bg-gray-100" placeholder="যেমন: 7 Days" />
+                      <label className="flex items-center gap-1 text-sm whitespace-nowrap">
+                        <input type="checkbox" checked={newGmailPost.expiredDate === 'Unlimited'} onChange={(e) => setNewGmailPost({...newGmailPost, expiredDate: e.target.checked ? 'Unlimited' : ''})} className="rounded text-emerald-600" />
+                        আনলিমিটেড
+                      </label>
+                    </div>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">বিবরণ</label>
