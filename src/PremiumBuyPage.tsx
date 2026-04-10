@@ -20,18 +20,18 @@ export const PremiumBuyPage = () => {
 
   useEffect(() => {
     const unsubscribe = onSnapshot(
-      collection(db, 'premiumJobs'),
+      collection(db, 'premiumPackages'),
       (snapshot) => {
         const jobsData: any[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         // Add a demo job if no jobs exist
         if (jobsData.length === 0) {
           jobsData.push({
-            id: 'demo-job-1',
-            title: 'Demo: Watch YouTube Video & Subscribe',
-            description: '1. Search for "Upwork BD 5" on YouTube.\n2. Watch the latest video for at least 3 minutes.\n3. Subscribe to the channel and like the video.\n4. Take a screenshot as proof and submit.',
-            expiredDate: '7 Days',
-            price: 50,
+            id: 'demo-package-1',
+            title: 'Demo: Premium Package 1',
+            description: 'This is a demo premium package.',
+            expiredDate: '30 Days',
+            price: 500,
             buyerLimit: 100,
             buyersCount: 0,
             isActive: true
@@ -42,7 +42,7 @@ export const PremiumBuyPage = () => {
         setPackages(jobsData.filter((job: any) => job.isActive));
       },
       (error) => {
-        handleFirestoreError(error, OperationType.GET, 'premiumJobs');
+        handleFirestoreError(error, OperationType.GET, 'premiumPackages');
       }
     );
     return () => unsubscribe();
@@ -110,7 +110,7 @@ export const PremiumBuyPage = () => {
         <button onClick={() => navigate('/')} className="p-2 hover:bg-emerald-500 rounded-full transition">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-xl font-bold">প্রিমিয়াম প্যাকেজ</h1>
+        <h1 className="text-xl font-bold">Premium Kinun</h1>
       </div>
 
       <div className="p-4 max-w-4xl mx-auto">
@@ -169,7 +169,7 @@ export const PremiumBuyPage = () => {
           })}
           {packages.length === 0 && (
             <div className="col-span-full text-center py-10 text-gray-500">
-              এই মুহূর্তে কোনো প্রিমিয়াম প্যাকেজ উপলব্ধ নেই।
+              এই মুহূর্তে কোনো Premium Kinun উপলব্ধ নেই।
             </div>
           )}
         </div>
@@ -215,7 +215,7 @@ export const PremiumBuyPage = () => {
                 }}
                 className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-3 rounded-xl transition"
               >
-                {appUser?.unlockedPackages?.includes(selectedPackage.id) ? 'প্রিমিয়াম জবস এ যান' : 'প্যাকেজ আনলক করুন'}
+                {appUser?.unlockedPackages?.includes(selectedPackage.id) ? 'প্রিমিয়াম কাজ এ যান' : 'প্যাকেজ আনলক করুন'}
               </button>
             </div>
           </div>
