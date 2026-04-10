@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from './firebase';
 
 interface AppUser {
@@ -15,6 +15,8 @@ interface AppUser {
   unlockedPackages: string[];
   isVerified?: boolean;
   spinCount?: number;
+  referCount?: number;
+  walletAddress?: string;
   createdAt: Date;
 }
 
@@ -36,48 +38,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let unsubscribeSnapshot: () => void;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
           
-          if (userDoc.exists()) {
-            const data = userDoc.data() as AppUser;
-            const isAdminEmail = firebaseUser.email === 'islamohi453@gmail.com' || firebaseUser.email === 'yuta81134@gmail.com';
-            if (isAdminEmail && data.role !== 'admin') {
-              data.role = 'admin';
-              await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+          // Listen to user document changes
+          unsubscribeSnapshot = onSnapshot(userDocRef, async (userDoc) => {
+            if (userDoc.exists()) {
+              const data = userDoc.data() as AppUser;
+              const isAdminEmail = firebaseUser.email === 'islamohi453@gmail.com' || firebaseUser.email === 'yuta81134@gmail.com';
+              if (isAdminEmail && data.role !== 'admin') {
+                data.role = 'admin';
+                await setDoc(userDocRef, { role: 'admin' }, { merge: true });
+              }
+              setAppUser(data);
+            } else {
+              // Create new user profile
+              const isAdminEmail = firebaseUser.email === 'islamohi453@gmail.com' || firebaseUser.email === 'yuta81134@gmail.com';
+              const newAppUser: AppUser = {
+                uid: firebaseUser.uid,
+                name: firebaseUser.displayName || 'User',
+                email: firebaseUser.email || '',
+                referId: Math.random().toString(36).substring(2, 10).toUpperCase(),
+                role: isAdminEmail ? 'admin' : 'user',
+                balance: 0,
+                unlockedPackages: ['demo-job-1'],
+                spinCount: 0,
+                createdAt: new Date(),
+              };
+              await setDoc(userDocRef, newAppUser);
+              // setAppUser will be called by the next snapshot
             }
-            setAppUser(data);
-          } else {
-            // Create new user profile
-            const isAdminEmail = firebaseUser.email === 'islamohi453@gmail.com' || firebaseUser.email === 'yuta81134@gmail.com';
-            const newAppUser: AppUser = {
-              uid: firebaseUser.uid,
-              name: firebaseUser.displayName || 'User',
-              email: firebaseUser.email || '',
-              referId: Math.random().toString(36).substring(2, 10).toUpperCase(),
-              role: isAdminEmail ? 'admin' : 'user',
-              balance: 0,
-              unlockedPackages: ['demo-job-1'],
-              spinCount: 0,
-              createdAt: new Date(),
-            };
-            await setDoc(userDocRef, newAppUser);
-            setAppUser(newAppUser);
-          }
+            setLoading(false);
+          }, (error) => {
+            handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+            setLoading(false);
+          });
         } catch (error) {
           handleFirestoreError(error, OperationType.GET, `users/${firebaseUser.uid}`);
+          setLoading(false);
         }
       } else {
         setAppUser(null);
+        setLoading(false);
+        if (unsubscribeSnapshot) unsubscribeSnapshot();
       }
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+    };
   }, []);
 
   const loginWithEmail = async (email: string, pass: string) => {
