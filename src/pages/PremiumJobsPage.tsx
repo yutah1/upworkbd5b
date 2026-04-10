@@ -68,7 +68,7 @@ const PremiumJobsPage = () => {
         <button onClick={() => navigate('/')} className="p-2 hover:bg-emerald-500 rounded-full transition">
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-xl font-bold">প্রিমিয়াম জবস</h1>
+        <h1 className="text-xl font-bold">Premium Kaj</h1>
       </div>
 
       <div className="p-4 max-w-4xl mx-auto">
@@ -78,7 +78,7 @@ const PremiumJobsPage = () => {
             <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600">
               <Briefcase size={24} />
             </div>
-            <h2 className="text-xl font-bold text-gray-800">প্রিমিয়াম জবস এ কীভাবে কাজ করবেন?</h2>
+            <h2 className="text-xl font-bold text-gray-800">Premium Kaj এ কীভাবে কাজ করবেন?</h2>
           </div>
           <div className="space-y-3 text-gray-600 text-sm">
             <p className="flex items-start gap-2">
@@ -112,16 +112,14 @@ const PremiumJobsPage = () => {
             {jobs.filter(job => appUser?.unlockedPackages?.includes(job.id) || job.title.includes('ছোট কাজ') || job.title.includes('Gmail Sell') || job.title.includes('Microjobs')).map(job => {
               return (
               <div key={job.id} className="bg-white rounded-2xl p-5 shadow-sm border border-emerald-200 hover:border-emerald-300 transition-colors">
-                <div className="flex gap-4">
+                <div className="flex flex-col items-center text-center gap-3">
                   {job.thumbnail && (
                     <img src={job.thumbnail} alt={job.title} className="w-16 h-16 object-cover rounded-lg border border-gray-100 flex-shrink-0" referrerPolicy="no-referrer" />
                   )}
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-lg text-gray-900 leading-tight">{job.title}</h4>
-                    </div>
+                  <div className="flex-1 w-full flex flex-col items-center">
+                    <h4 className="font-bold text-lg text-gray-900 leading-tight mb-2">{job.title}</h4>
                     
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <div className="flex flex-wrap justify-center gap-2 mb-4">
                       <div className="flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-md">
                         <Clock size={14} /> {job.expiredDate || job.duration}
                       </div>
@@ -144,12 +142,12 @@ const PremiumJobsPage = () => {
               <Briefcase size={32} />
             </div>
             <h3 className="text-xl font-bold text-gray-800 mb-2">কোনো আনলক করা প্যাকেজ নেই</h3>
-            <p className="text-gray-500 mb-6 max-w-sm mx-auto">আপনি এখনও কোনো প্রিমিয়াম প্যাকেজ আনলক করেননি। প্যাকেজ আনলক করতে এবং কাজ শুরু করতে অনুগ্রহ করে প্রিমিয়াম বাই সেকশনে যান।</p>
+            <p className="text-gray-500 mb-6 max-w-sm mx-auto">আপনি এখনও কোনো প্রিমিয়াম প্যাকেজ আনলক করেননি। প্যাকেজ আনলক করতে এবং কাজ শুরু করতে অনুগ্রহ করে প্রিমিয়াম কিনুন সেকশনে যান।</p>
             <button 
               onClick={() => navigate('/premium-buy')}
               className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-medium hover:bg-emerald-700 transition shadow-sm"
             >
-              প্রিমিয়াম বাই এ যান
+              প্রিমিয়াম কিনুন এ যান
             </button>
           </div>
         )}
