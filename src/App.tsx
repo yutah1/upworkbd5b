@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Menu, Bell, User, LogOut, Home, CreditCard, Wallet, HelpCircle, MessageCircle, Facebook, Send, X, Briefcase, Search, Target, ShoppingCart, Gift, PlaySquare, Calendar, Sparkles, Banknote, Crown, Ticket, Aperture, Smartphone, Users, Store, LifeBuoy, ArrowLeft, ArrowRight, Bot, Monitor, PartyPopper, ShoppingBag, Youtube } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Link, useNavigate, useParams } from 'react-router-dom';
+import { Menu, Bell, User, LogOut, Home, CreditCard, Wallet, HelpCircle, MessageCircle, Facebook, Send, X, Briefcase, Search, Target, ShoppingCart, Gift, PlaySquare, Calendar, Sparkles, Banknote, Crown, Ticket, Aperture, Smartphone, Users, Store, LifeBuoy, ArrowLeft, ArrowRight, Bot, Monitor, PartyPopper, ShoppingBag, Youtube, Eye, EyeOff } from 'lucide-react';
 import { AuthProvider, useAuth } from './AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
@@ -266,16 +266,25 @@ const NotificationCard: React.FC<{ title: string, message: string, date: string,
 // --- Main Pages ---
 
 const AuthPage = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const { code } = useParams();
+  const [isLogin, setIsLogin] = useState(!code);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [referCode, setReferCode] = useState('');
+  const [referCode, setReferCode] = useState(code || '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginWithEmail, registerWithEmail, login: googleLogin } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (code) {
+      setIsLogin(false);
+      setReferCode(code);
+    }
+  }, [code]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,7 +356,12 @@ const AuthPage = () => {
           </div>
           <div>
             <label className="block text-sm text-gray-600 mb-1">পাসওয়ার্ড</label>
-            <input required type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-900 focus:outline-none focus:border-emerald-500" placeholder="পাসওয়ার্ড লিখুন" />
+            <div className="relative">
+              <input required type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} className="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 pr-10 text-gray-900 focus:outline-none focus:border-emerald-500" placeholder="পাসওয়ার্ড লিখুন" />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
           
           <button disabled={loading} type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-lg transition disabled:opacity-50">
@@ -717,9 +731,15 @@ const HomeDashboard = ({ showAlert }: { showAlert: (msg: string) => void }) => {
       return;
     }
 
-    if (opt.id === 1 || opt.title === 'প্রিমিয়াম জবস') {
+    if (!appUser.isVerified && appUser.role !== 'admin') {
+      showAlert('অনুগ্রহ করে প্রথমে আপনার অ্যাকাউন্ট ভেরিফাই করুন।');
+      setTimeout(() => navigate('/deposit'), 1500);
+      return;
+    }
+
+    if (opt.id === 1 || opt.title === 'প্রিমিয়াম কাজ') {
       navigate('/premium-jobs');
-    } else if (opt.id === 13 || opt.title === 'প্রিমিয়াম বাই') {
+    } else if (opt.id === 13 || opt.title === 'প্রিমিয়াম কিনুন') {
       navigate('/premium-buy');
     } else if (opt.id === 2 || opt.title === 'ছোট কাজ') {
       navigate('/micro-jobs');
@@ -864,14 +884,6 @@ const AppContent = () => {
               }
             });
 
-            mergedOptions = mergedOptions.map((o: any) => {
-              const defOpt = defaultOptions.find(d => d.id === o.id);
-              if (defOpt) {
-                return { ...o, title: defOpt.title };
-              }
-              return o;
-            });
-
             // Sort by order to keep it clean
             mergedOptions.sort((a: any, b: any) => a.order - b.order);
 
@@ -903,6 +915,7 @@ const AppContent = () => {
       <main>
         <Routes>
           <Route path="/" element={<HomeDashboard showAlert={(msg) => setAlertDialog({ isOpen: true, message: msg })} />} />
+          <Route path="/ref/:code" element={<AuthPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/admin" element={<ProtectedRoute><AdminPanel /></ProtectedRoute>} />
           <Route path="/premium-jobs" element={<ProtectedRoute><PremiumJobsPage /></ProtectedRoute>} />
