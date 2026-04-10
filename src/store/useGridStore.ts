@@ -17,8 +17,8 @@ interface GridStore {
 }
 
 export const defaultOptions: GridOption[] = [
-  { id: 1, title: 'প্রিমিয়াম জবস', iconId: 'PremiumJobsIcon', isActive: true, order: 1 },
-  { id: 13, title: 'প্রিমিয়াম বাই', iconId: 'PremiumBuyIcon', isActive: true, order: 2 },
+  { id: 1, title: 'Premium Kaj', iconId: 'PremiumJobsIcon', isActive: true, order: 1 },
+  { id: 13, title: 'Premium Kinun', iconId: 'PremiumBuyIcon', isActive: true, order: 2 },
   { id: 2, title: 'ছোট কাজ', iconId: 'MicroJobsIcon', isActive: true, order: 3 },
   { id: 14, title: 'জব পোস্ট', iconId: 'JobPostIcon', isActive: true, order: 4 },
   { id: 3, title: 'টার্গেট বোনাস', iconId: 'TargetBonusIcon', isActive: true, order: 5 },
