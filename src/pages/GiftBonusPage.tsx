@@ -97,39 +97,32 @@ export const GiftBonusPage = () => {
         </div>
 
         <div className="space-y-4">
-          <h3 className="font-bold text-gray-800">উপলব্ধ গিফট বোনাস</h3>
-          {bonuses.length === 0 ? (
+          <h3 className="font-bold text-gray-800">ক্লেম হিস্ট্রি</h3>
+          {bonuses.filter(b => appUser?.claimedGiftBonuses?.includes(b.id)).length === 0 ? (
             <div className="text-center p-8 bg-white rounded-xl shadow-sm border border-gray-200 text-gray-500">
-              এখনও কোনো গিফট বোনাস পোস্ট করা হয়নি।
+              আপনি এখনও কোনো গিফট বোনাস ক্লেম করেননি।
             </div>
           ) : (
-            bonuses.map(bonus => {
-              const isClaimed = appUser?.claimedGiftBonuses?.includes(bonus.id);
-              return (
-                <div key={bonus.id} className={`bg-white p-5 rounded-xl shadow-sm border ${isClaimed ? 'border-gray-200 opacity-70' : 'border-pink-100'} flex flex-col md:flex-row md:items-center justify-between gap-4`}>
-                  <div className="flex items-start gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${isClaimed ? 'bg-gray-100 text-gray-400' : 'bg-pink-100 text-pink-600'}`}>
-                      <Gift size={24} />
-                    </div>
-                    <div>
-                      <h3 className={`font-bold text-lg mb-1 ${isClaimed ? 'text-gray-600' : 'text-gray-900'}`}>{bonus.title}</h3>
-                      <div className="flex items-center gap-4 text-sm mt-2">
-                        <span className={`flex items-center gap-1 font-bold px-2 py-1 rounded-md ${isClaimed ? 'text-gray-500 bg-gray-100' : 'text-emerald-600 bg-emerald-50'}`}>
-                          <DollarSign size={16} /> ৳{bonus.amount}
-                        </span>
-                      </div>
-                    </div>
+            bonuses.filter(b => appUser?.claimedGiftBonuses?.includes(b.id)).map(bonus => (
+              <div key={bonus.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 bg-gray-100 text-gray-400">
+                    <Gift size={24} />
                   </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {isClaimed ? (
-                      <span className="text-sm font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-lg">ক্লেম করা হয়েছে</span>
-                    ) : (
-                      <span className="text-sm text-pink-600 font-medium">কোড সংগ্রহ করুন</span>
-                    )}
+                  <div>
+                    <h3 className="font-bold text-lg mb-1 text-gray-600">{bonus.title}</h3>
+                    <div className="flex items-center gap-4 text-sm mt-2">
+                      <span className="flex items-center gap-1 font-bold px-2 py-1 rounded-md text-gray-500 bg-gray-100">
+                        <DollarSign size={16} /> ৳{bonus.amount}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              );
-            })
+                <div className="flex flex-col items-end gap-2">
+                  <span className="text-sm font-bold text-gray-500 bg-gray-100 px-4 py-2 rounded-lg">ক্লেম করা হয়েছে</span>
+                </div>
+              </div>
+            ))
           )}
         </div>
       </div>
