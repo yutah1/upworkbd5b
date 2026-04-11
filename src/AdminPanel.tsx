@@ -29,7 +29,10 @@ export const AdminPanel = () => {
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [editBalance, setEditBalance] = useState<number>(0);
   const [editReferCount, setEditReferCount] = useState<number>(0);
-  const [editWalletAddress, setEditWalletAddress] = useState<string>('');
+  const [editReferId, setEditReferId] = useState<string>('');
+  const [editReferredBy, setEditReferredBy] = useState<string>('');
+  const [editPaymentMethods, setEditPaymentMethods] = useState<any>({});
+  const [editPaymentMethodsLocked, setEditPaymentMethodsLocked] = useState<boolean>(false);
 
   // Premium Jobs State
   const [premiumJobs, setPremiumJobs] = useState<any[]>([]);
@@ -106,10 +109,15 @@ export const AdminPanel = () => {
   // Video Earn State
   const [videoTasks, setVideoTasks] = useState<any[]>([]);
   const [newVideoTask, setNewVideoTask] = useState({ title: '', description: '', expiredDate: '', reward: 0, duration: 0, videoUrl: '' });
+  const [videoEarnSubmissions, setVideoEarnSubmissions] = useState<any[]>([]);
 
   // Withdrawals State (Payments)
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [selectedWithdrawal, setSelectedWithdrawal] = useState<any | null>(null);
+
+  // Premium Job Submissions State
+  const [premiumJobSubmissions, setPremiumJobSubmissions] = useState<any[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<any | null>(null);
 
   // Deposits State
   const [deposits, setDeposits] = useState<any[]>([]);
@@ -251,6 +259,13 @@ export const AdminPanel = () => {
       handleFirestoreError(error, OperationType.LIST, 'videoEarnTasks');
     });
 
+    const qVideoEarnSubmissions = query(collection(db, 'videoEarnSubmissions'), orderBy('createdAt', 'desc'));
+    const unsubscribeVideoEarnSubmissions = onSnapshot(qVideoEarnSubmissions, (snapshot) => {
+      setVideoEarnSubmissions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'videoEarnSubmissions');
+    });
+
     // Fetch Micro Jobs
     const qMicroJobs = query(collection(db, 'microJobs'), orderBy('createdAt', 'desc'));
     const unsubscribeMicroJobs = onSnapshot(qMicroJobs, (snapshot) => {
@@ -281,6 +296,14 @@ export const AdminPanel = () => {
       setWithdrawals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, 'withdrawals');
+    });
+
+    // Fetch Premium Job Submissions
+    const qSubmissions = query(collection(db, 'premiumJobSubmissions'), orderBy('createdAt', 'desc'));
+    const unsubscribeSubmissions = onSnapshot(qSubmissions, (snapshot) => {
+      setPremiumJobSubmissions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'premiumJobSubmissions');
     });
 
     // Fetch Target Bonuses
@@ -351,10 +374,12 @@ export const AdminPanel = () => {
       unsubscribeMonthlySalaries();
       unsubscribeLeadershipSalaries();
       unsubscribeVideoTasks();
+      unsubscribeVideoEarnSubmissions();
       unsubscribeMicroJobs();
       unsubscribeUserMicroJobs();
       unsubscribeDailyTasks();
       unsubscribeWithdrawals();
+      unsubscribeSubmissions();
       unsubscribeTargetBonuses();
       unsubscribeGiftBonuses();
       unsubscribeWelcomeBonuses();
@@ -445,13 +470,19 @@ export const AdminPanel = () => {
       await setDoc(doc(db, 'users', selectedUser.id), { 
         balance: editBalance,
         referCount: editReferCount,
-        walletAddress: editWalletAddress
+        referId: editReferId,
+        referredBy: editReferredBy,
+        paymentMethods: editPaymentMethods,
+        paymentMethodsLocked: editPaymentMethodsLocked
       }, { merge: true });
       setSelectedUser({ 
         ...selectedUser, 
         balance: editBalance,
         referCount: editReferCount,
-        walletAddress: editWalletAddress
+        referId: editReferId,
+        referredBy: editReferredBy,
+        paymentMethods: editPaymentMethods,
+        paymentMethodsLocked: editPaymentMethodsLocked
       });
       showAlert("User details updated successfully!");
     } catch (error) {
@@ -1061,7 +1092,15 @@ export const AdminPanel = () => {
         if (userSnap.exists()) {
           const userData = userSnap.data();
           const currentBalance = userData.balance || 0;
-          await setDoc(userRef, { balance: currentBalance + deposit.amount, isVerified: true }, { merge: true });
+          
+          let newBalance = currentBalance + deposit.amount;
+          
+          // If user is not verified, deduct 50 taka as verification fee
+          if (!userData.isVerified) {
+            newBalance = Math.max(0, newBalance - 50);
+          }
+          
+          await setDoc(userRef, { balance: newBalance, isVerified: true }, { merge: true });
 
           // Check if user was referred by someone and give referrer a free spin
           if (userData.referredBy && !userData.isVerified) {
@@ -1088,6 +1127,38 @@ export const AdminPanel = () => {
         await setDoc(doc(db, 'deposits', id), { status: 'rejected' }, { merge: true });
       } catch (error) {
         handleFirestoreError(error, OperationType.UPDATE, `deposits/${id}`);
+      }
+    });
+  };
+
+  const handleApprovePremiumSubmission = async (submission: any) => {
+    if (!isAdmin) return;
+    showConfirm(`Approve submission for ${submission.userName}?`, async () => {
+      try {
+        await setDoc(doc(db, 'premiumJobSubmissions', submission.id), { status: 'approved' }, { merge: true });
+        
+        // Add reward to user balance
+        const userRef = doc(db, 'users', submission.userId);
+        const { getDoc } = await import('firebase/firestore');
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const currentBalance = userData.balance || 0;
+          await setDoc(userRef, { balance: currentBalance + submission.reward }, { merge: true });
+        }
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `premiumJobSubmissions/${submission.id}`);
+      }
+    });
+  };
+
+  const handleRejectPremiumSubmission = async (id: string) => {
+    if (!isAdmin) return;
+    showConfirm("Reject this submission?", async () => {
+      try {
+        await setDoc(doc(db, 'premiumJobSubmissions', id), { status: 'rejected' }, { merge: true });
+      } catch (error) {
+        handleFirestoreError(error, OperationType.UPDATE, `premiumJobSubmissions/${id}`);
       }
     });
   };
@@ -1151,10 +1222,13 @@ export const AdminPanel = () => {
             <Grid size={20} /> গ্রিড অপশন
           </button>
           <button onClick={() => { setActiveTab('premiumJobs'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'premiumJobs' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
-            <Briefcase size={20} /> Premium Kaj
+            <Briefcase size={20} /> প্রিমিয়াম কাজ
+          </button>
+          <button onClick={() => { setActiveTab('premiumJobSubmissions'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'premiumJobSubmissions' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
+            <Briefcase size={20} /> প্রিমিয়াম কাজের জমা
           </button>
           <button onClick={() => { setActiveTab('premiumPackages'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'premiumPackages' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
-            <CreditCard size={20} /> Premium Kinun
+            <CreditCard size={20} /> প্রিমিয়াম কিনুন
           </button>
           <button onClick={() => { setActiveTab('microJobs'); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3 px-6 py-3 transition ${activeTab === 'microJobs' ? 'bg-emerald-700 border-l-4 border-emerald-400' : 'hover:bg-emerald-700/50 border-l-4 border-transparent'}`}>
             <Briefcase size={20} /> ছোট কাজ
@@ -1440,9 +1514,103 @@ export const AdminPanel = () => {
           </div>
         )}
 
+        {activeTab === 'premiumJobSubmissions' && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
+            <h2 className="text-2xl font-bold text-gray-800 border-b pb-2">প্রিমিয়াম কাজের জমা</h2>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="divide-y divide-gray-100">
+                {premiumJobSubmissions.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">কোনো কাজের জমা পাওয়া যায়নি</div>
+                ) : (
+                  premiumJobSubmissions.map(submission => (
+                    <div key={submission.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-gray-50 transition cursor-pointer" onClick={() => setSelectedSubmission(submission)}>
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900">{submission.userName}</span>
+                          <span className="text-sm text-gray-500">({submission.jobTitle})</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2 text-sm">
+                          <span className="bg-emerald-50 text-emerald-700 px-2 py-1 rounded">রিওয়ার্ড: ৳{submission.reward}</span>
+                        </div>
+                        <div className="mt-2 text-xs text-gray-400">
+                          {submission.createdAt?.toDate().toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 self-end md:self-auto" onClick={(e) => e.stopPropagation()}>
+                        {submission.status === 'pending' ? (
+                          <>
+                            <button onClick={() => handleApprovePremiumSubmission(submission)} className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium transition">অনুমোদন করুন</button>
+                            <button onClick={() => handleRejectPremiumSubmission(submission.id)} className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium transition">বাতিল করুন</button>
+                          </>
+                        ) : (
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${submission.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            {submission.status === 'approved' ? 'অনুমোদিত' : 'বাতিলকৃত'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Submission Details Modal */}
+            {selectedSubmission && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-900">জমার বিবরণ</h3>
+                    <button onClick={() => setSelectedSubmission(null)} className="p-2 hover:bg-gray-100 rounded-full transition">
+                      <X size={20} />
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm text-gray-500">ইউজার</p>
+                      <p className="font-medium text-gray-900">{selectedSubmission.userName}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">কাজের নাম</p>
+                      <p className="font-medium text-gray-900">{selectedSubmission.jobTitle}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">রিওয়ার্ড</p>
+                      <p className="font-medium text-gray-900">৳{selectedSubmission.reward}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">প্রমাণ</p>
+                      <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-800 whitespace-pre-wrap">
+                        {selectedSubmission.proof}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">স্ট্যাটাস</p>
+                      <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold ${selectedSubmission.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : selectedSubmission.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {selectedSubmission.status === 'approved' ? 'অনুমোদিত' : selectedSubmission.status === 'rejected' ? 'বাতিলকৃত' : 'অপেক্ষমাণ'}
+                      </span>
+                    </div>
+
+                    {selectedSubmission.status === 'pending' && (
+                      <div className="pt-4 border-t flex gap-3">
+                        <button onClick={() => { handleApprovePremiumSubmission(selectedSubmission); setSelectedSubmission(null); }} className="flex-1 bg-emerald-600 text-white py-2 rounded-lg font-medium hover:bg-emerald-700 transition">
+                          অনুমোদন করুন
+                        </button>
+                        <button onClick={() => { handleRejectPremiumSubmission(selectedSubmission.id); setSelectedSubmission(null); }} className="flex-1 bg-red-100 text-red-700 py-2 rounded-lg font-medium hover:bg-red-200 transition">
+                          বাতিল করুন
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {activeTab === 'premiumJobs' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <h2 className="text-2xl font-bold text-gray-800">Premium Kaj ম্যানেজমেন্ট</h2>
+            <h2 className="text-2xl font-bold text-gray-800">প্রিমিয়াম কাজ ম্যানেজমেন্ট</h2>
             
             {/* Add New Job Form */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -2068,6 +2236,39 @@ export const AdminPanel = () => {
                 )}
               </div>
             </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-4 bg-gray-50 border-b border-gray-200">
+                <h3 className="font-bold text-gray-800">ভিডিও আর্ন সাবমিশন</h3>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {videoEarnSubmissions.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">এখনও কোনো সাবমিশন নেই।</div>
+                ) : (
+                  videoEarnSubmissions.map(submission => (
+                    <div key={submission.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900">{submission.taskTitle}</h4>
+                        <p className="text-sm text-gray-600">User: {submission.userName} ({submission.userEmail})</p>
+                        <p className="text-sm font-medium text-emerald-600 mt-1">Reward: ৳{submission.amount}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {submission.status === 'pending' ? (
+                          <>
+                            <button onClick={() => handleApproveSubmission('videoEarnSubmissions', submission)} className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 text-sm">Approve</button>
+                            <button onClick={() => handleRejectSubmission('videoEarnSubmissions', submission.id)} className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-sm">Reject</button>
+                          </>
+                        ) : (
+                          <span className={`px-2 py-1 rounded text-xs font-bold ${submission.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                            {submission.status === 'approved' ? 'Approved' : 'Rejected'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -2175,7 +2376,10 @@ export const AdminPanel = () => {
                       setSelectedUser(u); 
                       setEditBalance(u.balance || 0); 
                       setEditReferCount(u.referCount || 0);
-                      setEditWalletAddress(u.walletAddress || '');
+                      setEditReferId(u.referId || '');
+                      setEditReferredBy(u.referredBy || '');
+                      setEditPaymentMethods(u.paymentMethods || {});
+                      setEditPaymentMethodsLocked(u.paymentMethodsLocked || false);
                     }}>
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center font-bold">
@@ -2223,10 +2427,6 @@ export const AdminPanel = () => {
                   <p className="text-sm text-gray-500">ফোন নম্বর</p>
                   <p className="font-medium text-gray-900">{selectedUser.phone || 'N/A'}</p>
                 </div>
-                <div>
-                  <p className="text-sm text-gray-500">রেফারেল আইডি</p>
-                  <p className="font-medium text-gray-900">{selectedUser.referId}</p>
-                </div>
                 
                 <div className="pt-4 border-t space-y-4">
                   <div>
@@ -2238,8 +2438,55 @@ export const AdminPanel = () => {
                     <input type="number" value={editReferCount} onChange={(e) => setEditReferCount(Number(e.target.value))} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">ওয়ালেট অ্যাড্রেস এডিট করুন</label>
-                    <input type="text" value={editWalletAddress} onChange={(e) => setEditWalletAddress(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="ওয়ালেট অ্যাড্রেস" />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">রেফারেল আইডি এডিট করুন</label>
+                    <input type="text" value={editReferId} onChange={(e) => setEditReferId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">যিনি রেফার করেছেন (Referred By)</label>
+                    <input type="text" value={editReferredBy} onChange={(e) => setEditReferredBy(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Referrer's ID" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">ইউজারের পেমেন্ট মেথড</label>
+                    {Object.keys(editPaymentMethods).length > 0 ? (
+                      Object.keys(editPaymentMethods).map(method => (
+                        <div key={method} className="flex gap-2 items-center">
+                          <span className="capitalize w-20 text-sm font-medium">{method}:</span>
+                          <input 
+                            type="text" 
+                            value={editPaymentMethods[method]?.number || ''} 
+                            onChange={(e) => setEditPaymentMethods({
+                              ...editPaymentMethods, 
+                              [method]: { ...editPaymentMethods[method], number: e.target.value }
+                            })}
+                            className="flex-1 px-3 py-1 border border-gray-300 rounded-md text-sm"
+                            placeholder="Number"
+                          />
+                          <button 
+                            onClick={() => {
+                              const newMethods = { ...editPaymentMethods };
+                              delete newMethods[method];
+                              setEditPaymentMethods(newMethods);
+                            }}
+                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            title="Delete Method"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500">কোনো পেমেন্ট মেথড সেট করা নেই</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      checked={editPaymentMethodsLocked} 
+                      onChange={(e) => setEditPaymentMethodsLocked(e.target.checked)} 
+                      id="lockMethods"
+                      className="rounded text-emerald-600"
+                    />
+                    <label htmlFor="lockMethods" className="text-sm font-medium text-gray-700">পেমেন্ট মেথড লক করা আছে (আনলক করতে টিক তুলে দিন)</label>
                   </div>
                   <button onClick={handleSaveUserDetails} className="w-full bg-emerald-600 text-white px-4 py-2 rounded-md hover:bg-emerald-700 transition">সংরক্ষণ করুন</button>
                 </div>
@@ -2460,7 +2707,7 @@ export const AdminPanel = () => {
 
         {activeTab === 'premiumPackages' && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-            <h2 className="text-2xl font-bold text-gray-800">Premium Kinun ম্যানেজমেন্ট</h2>
+            <h2 className="text-2xl font-bold text-gray-800">প্রিমিয়াম কিনুন ম্যানেজমেন্ট</h2>
             
             {/* Add New Package Form */}
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
