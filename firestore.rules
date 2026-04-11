@@ -10,9 +10,11 @@ service cloud.firestore {
     
     function isAdmin() {
       return isAuthenticated() && (
-        request.auth.token.email == "islamohi453@gmail.com" ||
-        request.auth.token.email == "yuta81134@gmail.com" ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        request.auth.uid == "hUd5MB7SOVbdWiJs2FtrAtpfDE93" ||
+        request.auth.token.get('email', '') == "islamohi453@gmail.com" ||
+        request.auth.token.get('email', '') == "yuta81134@gmail.com" ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin')
       );
     }
     
@@ -23,8 +25,8 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && (request.resource.data.role == 'user' || isAdmin());
-      allow update: if isOwner(userId) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -46,10 +48,23 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Premium Job Submissions
+    match /premiumJobSubmissions/{document} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Premium Packages
+    match /premiumPackages/{document} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
     // Deposits
     match /deposits/{document} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
@@ -61,8 +76,8 @@ service cloud.firestore {
 
     // Facebook Sell Submissions
     match /facebookSellSubmissions/{document} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
@@ -74,8 +89,8 @@ service cloud.firestore {
 
     // Gmail Sell Submissions
     match /gmailSellSubmissions/{document} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
@@ -88,7 +103,7 @@ service cloud.firestore {
     // User Micro Jobs
     match /userMicroJobs/{document} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.posterId == request.auth.uid;
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.posterId == request.auth.uid);
     }
 
@@ -100,8 +115,8 @@ service cloud.firestore {
 
     // Withdrawals
     match /withdrawals/{document} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
@@ -125,8 +140,8 @@ service cloud.firestore {
 
     // Welcome Bonus Submissions
     match /welcomeBonusSubmissions/{document} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
@@ -138,8 +153,8 @@ service cloud.firestore {
 
     // Monthly Salary Submissions
     match /monthlySalarySubmissions/{document} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
@@ -151,8 +166,8 @@ service cloud.firestore {
 
     // Leadership Salary Submissions
     match /leadershipSalarySubmissions/{document} {
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
       allow update, delete: if isAdmin();
     }
 
@@ -160,6 +175,13 @@ service cloud.firestore {
     match /videoEarnTasks/{document} {
       allow read: if isAuthenticated();
       allow write: if isAdmin();
+    }
+
+    // Video Earn Submissions
+    match /videoEarnSubmissions/{document} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAdmin();
     }
 
     // Default deny for anything else
